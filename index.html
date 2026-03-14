@@ -42,7 +42,7 @@ textarea:focus{outline:none;border-color:var(--c-primary);box-shadow:0 0 0 3px r
 textarea.drag-over{border-color:var(--c-primary);background:var(--c-summary-bg)}
 
 /* 按钮 */
-button{padding:10px 20px;font-size:14px;font-weight:600;border:none;border-radius:8px;background:var(--c-primary);color:#fff;margin:4px;cursor:pointer;transition:all .2s;letter-spacing:.2px}
+button{padding:10px 20px;font-size:14px;font-weight:600;border:none;border-radius:8px;background:var(--c-primary);color:#fff;margin:0;cursor:pointer;transition:all .2s;letter-spacing:.2px}
 button:hover:not(:disabled){background:var(--c-primary-dark);transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.25)}
 button:active:not(:disabled){transform:translateY(0)}
 button:disabled{background:#94a3b8;cursor:not-allowed;opacity:.6}
@@ -67,6 +67,7 @@ button:disabled{background:#94a3b8;cursor:not-allowed;opacity:.6}
 
 /* 进度条 */
 #loading{margin-top:16px;text-align:center;color:var(--c-sub);font-size:13px}
+#barTxt{margin-top:6px;font-size:13px;color:var(--c-sub);font-variant-numeric:tabular-nums}
 progress{width:100%;height:6px;border:none;border-radius:3px;background:var(--c-border);overflow:hidden}
 progress::-webkit-progress-value{background:linear-gradient(90deg,var(--c-primary),#8b5cf6);border-radius:3px;transition:width .3s}
 progress::-webkit-progress-bar{background:var(--c-border);border-radius:3px}
@@ -99,9 +100,14 @@ progress::-webkit-progress-bar{background:var(--c-border);border-radius:3px}
 /* 表格样式 */
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius);border:1px solid var(--c-border);margin-top:4px}
 table{width:100%;min-width:1000px;border-collapse:collapse;background:var(--c-card);transition:background .3s}
-th,td{padding:12px 10px;font-size:13px;text-align:center;transition:background .3s,border-color .3s}
+th,td{padding:12px 10px;font-size:13px;text-align:left;transition:background .3s,border-color .3s}
 td{border-top:1px solid var(--c-border)}
 th{background:var(--c-primary);color:#fff;position:sticky;top:0;z-index:2;cursor:pointer;user-select:none;white-space:nowrap;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;padding:10px 8px}
+/* 数值列右对齐 + 等宽数字 */
+th:nth-child(n+3):nth-child(-n+11),
+td:nth-child(n+3):nth-child(-n+11){text-align:right;font-variant-numeric:tabular-nums}
+/* 操作列居中 */
+th:nth-child(13),td:nth-child(13){text-align:center}
 th:hover{background:var(--c-primary-dark)}
 th .sort-arrow{font-size:10px;margin-left:3px;opacity:.8}
 th .sort-hint{font-size:9px;margin-left:2px;opacity:.4;transition:opacity .2s}
@@ -111,10 +117,11 @@ tbody tr:nth-child(even){background:var(--c-even)}
 tbody tr:hover{background:var(--c-hover)}
 
 /* 粘住列 */
+th:nth-child(1),td:nth-child(1){width:44px;min-width:44px}
 thead th:nth-child(1){position:sticky;left:0;background:var(--c-primary);z-index:3}
-thead th:nth-child(2){position:sticky;left:40px;background:var(--c-primary);z-index:3}
+thead th:nth-child(2){position:sticky;left:44px;background:var(--c-primary);z-index:3}
 tbody td:nth-child(1){position:sticky;left:0;background:inherit;z-index:1}
-tbody td:nth-child(2){position:sticky;left:40px;background:inherit;z-index:1}
+tbody td:nth-child(2){position:sticky;left:44px;background:inherit;z-index:1}
 
 /* 汇总行 */
 tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var(--c-primary);color:var(--c-primary);font-size:13px}
@@ -222,7 +229,7 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
 <button id="themeBtn" class="theme-toggle" title="">🌙</button>
 
 <div class="page-header">
-  <h1><span>Polymarket</span> <span id="pageTitle"></span> <a class="author-badge" href="https://x.com/0xXIAOc" target="_blank"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>@0xXIAOc</a> <a class="tg-badge" id="tgBadge" href="https://t.me/xiaoccaac" target="_blank"><svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg><span id="tgText">加入交流群</span></a></h1>
+  <h1><span>Polymarket</span> <span id="pageTitle"></span> <a class="author-badge" href="https://x.com/0xXIAOc" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>@0xXIAOc</a> <a class="tg-badge" id="tgBadge" href="https://t.me/xiaoccaac" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg><span id="tgText">加入交流群</span></a></h1>
   <p class="subtitle" id="subtitleEl"></p>
 </div>
 
@@ -331,7 +338,7 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
   </div>
 </div>
 
-<p class="footer">© 2026 Polymarket Toolbox · Made by <a href="https://x.com/0xXIAOc" target="_blank">@0xXIAOc</a></p>
+<p class="footer">© 2026 Polymarket Toolbox · Made by <a href="https://x.com/0xXIAOc" target="_blank" rel="noopener noreferrer">@0xXIAOc</a></p>
 <div id="toast" class="toast"></div>
 
 <script>
@@ -349,7 +356,7 @@ const i18n = {
     exportCsv:'导出 CSV', exportJson:'导出 JSON',
     colToggle:'列显隐', searchPlaceholder:'搜索地址或数据...',
     addNote:'添加备注', refresh:'刷新此行', themeTitle:'切换暗色/亮色模式',
-    thCols:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','日活','月活','备注','操作'],
+    thCols:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注','操作'],
     thTips:{
       total:'净资产 = 可用余额 + 持仓估值（USD）',
       pro:'历史累计盈亏（USD）',
@@ -371,6 +378,7 @@ const i18n = {
     historyLoaded:'已加载历史记录', historyCleared:'历史已清空',
     refreshing:'正在刷新...', refreshOk:'刷新完成', refreshFail:'刷新失败',
     noData:'暂无数据', cancelRequests:'正在取消所有进行中的请求...',
+    progressTxt:(done,total,rows,fail,secs)=>`${done}/${total} 地址 · ${rows} 行结果 · 失败 ${fail} · ${secs}s`,
     orderRestored:'已恢复输入顺序',
     sortClickTip:'点击排序', resetOrderTip:'点击恢复输入顺序',
     today:'今天', daysAgo:n=>`${n}天前`,
@@ -383,7 +391,7 @@ const i18n = {
     },
     footSummary:'汇总', footRows:n=>`${n} 行`,
     historyEntry:n=>`${n} 个地址`, historyDel:'删',
-    csvHeaders:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','日活','月活','备注'],
+    csvHeaders:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注'],
     offlineMsg:'网络已断开，请检查连接后重试',
     tgGroup:'加入交流群',
   },
@@ -399,7 +407,7 @@ const i18n = {
     exportCsv:'Export CSV', exportJson:'Export JSON',
     colToggle:'Columns', searchPlaceholder:'Search addresses or data...',
     addNote:'Add note', refresh:'Refresh row', themeTitle:'Toggle dark/light mode',
-    thCols:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Days','Months','Notes','Actions'],
+    thCols:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes','Actions'],
     thTips:{
       total:'Net Assets = Available + Holdings (USD)',
       pro:'All-time cumulative P&L (USD)',
@@ -421,6 +429,7 @@ const i18n = {
     historyLoaded:'History loaded', historyCleared:'History cleared',
     refreshing:'Refreshing...', refreshOk:'Refresh complete', refreshFail:'Refresh failed',
     noData:'No data', cancelRequests:'Cancelling all pending requests...',
+    progressTxt:(done,total,rows,fail,secs)=>`${done}/${total} addr · ${rows} rows · ${fail} failed · ${secs}s`,
     orderRestored:'Input order restored',
     sortClickTip:'Click to sort', resetOrderTip:'Click to restore input order',
     today:'Today', daysAgo:n=>`${n}d ago`,
@@ -433,7 +442,7 @@ const i18n = {
     },
     footSummary:'Total', footRows:n=>`${n} rows`,
     historyEntry:n=>`${n} address(es)`, historyDel:'Del',
-    csvHeaders:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Days','Months','Notes'],
+    csvHeaders:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes'],
     offlineMsg:'Network disconnected. Please check your connection and retry.',
     tgGroup:'Join Group',
   }
@@ -454,6 +463,7 @@ const USDC_CONTRACT   = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 const ETH_ADDR_RE     = /^0x[0-9a-fA-F]{40}$/;
 const CONCURRENCY     = 3;
 const RATE_LIMIT_MS   = 200;
+const CACHE_TTL       = 5 * 60 * 1000;  // 5 分钟缓存过期
 const HISTORY_KEY     = 'pm_query_history';
 const MAX_HISTORY     = 20;
 
@@ -465,15 +475,16 @@ function toNum(n) {
   return Number.isFinite(v) ? v : NaN;
 }
 
+const fmtLocale = () => curLang === 'zh' ? 'zh-CN' : 'en-US';
 const fmtInt = n => {
   const v = toNum(n);
-  return isNaN(v) ? '-' : Math.round(v).toLocaleString('en-US');
+  return isNaN(v) ? '-' : Math.round(v).toLocaleString(fmtLocale());
 };
 
 const fmtDec = n => {
   const v = toNum(n);
   if (isNaN(v)) return '-';
-  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return v.toLocaleString(fmtLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const clip = a => a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
@@ -636,7 +647,11 @@ function errBadgeCls(code) {
 }
 
 async function queryOne(owner) {
-  if (queryCache.has(owner)) return queryCache.get(owner);
+  if (queryCache.has(owner)) {
+    const { data, ts } = queryCache.get(owner);
+    if (Date.now() - ts < CACHE_TTL) return data;
+    queryCache.delete(owner);
+  }
 
   let safes = [];
   try {
@@ -652,7 +667,7 @@ async function queryOne(owner) {
 
   if (!safes.length) {
     const result = [{ disp: owner, err: ERR_NO_SAFE }];
-    queryCache.set(owner, result);
+    queryCache.set(owner, { data: result, ts: Date.now() });
     return result;
   }
 
@@ -670,7 +685,7 @@ async function queryOne(owner) {
       rows.push({ disp: owner, err: isTimeout ? ERR_TIMEOUT : ERR_API_FAIL });
     }
   }
-  queryCache.set(owner, rows);
+  queryCache.set(owner, { data: rows, ts: Date.now() });
   return rows;
 }
 
@@ -908,7 +923,12 @@ $('#clearHistory').addEventListener('click', () => {
 });
 renderHistory();
 
-const hiddenCols = new Set();
+const COL_VIS_KEY = 'pm_hidden_cols';
+const hiddenCols = new Set(JSON.parse(localStorage.getItem(COL_VIS_KEY) || '[]'));
+
+function saveColVis() {
+  localStorage.setItem(COL_VIS_KEY, JSON.stringify([...hiddenCols]));
+}
 
 function buildColMenu() {
   const menu = $('#colMenu');
@@ -922,6 +942,7 @@ function buildColMenu() {
     cb.checked = !hiddenCols.has(i);
     cb.addEventListener('change', () => {
       if (cb.checked) hiddenCols.delete(i); else hiddenCols.add(i);
+      saveColVis();
       applyColVisibility();
     });
     label.appendChild(cb);
@@ -1070,9 +1091,10 @@ function renderRowDirect(m, idx, insertBefore = null) {
     <td class="${lastCls}">${fmtLast(m.act)}</td>
     <td>${m.act?.d ?? '-'}</td>
     <td>${m.act?.m ?? '-'}</td>
-    <td><input class="note-input" data-note placeholder="${L('addNote')}" value="${(getNote(m.addr) || '').replace(/"/g, '&quot;')}"></td>
+    <td><input class="note-input" data-note placeholder="${L('addNote')}"></td>
     <td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}">↻</button></td>`;
 
+  tr.querySelector('[data-note]').value = getNote(m.addr) || '';
   tr.querySelector('[data-addr]').addEventListener('click', () => copy(m.addr));
   tr.querySelector('[data-refresh]').addEventListener('click', () => refreshRow(m));
   tr.querySelector('[data-note]').addEventListener('change', function() {
@@ -1188,6 +1210,7 @@ $('#run').addEventListener('click', async () => {
   resultMeta = [];
   lastQueryStats = null;
   abortFlag = false;
+  queryCache.clear();
   runController = new AbortController();
 
   $('#summary').style.display = 'none';
@@ -1203,7 +1226,8 @@ $('#run').addEventListener('click', async () => {
   $('#stop').textContent = L('stop');
   $('#tfoot').style.display = 'none';
 
-  let completed = 0, fail = 0, idx = 1;
+  let completed = 0, fail = 0, idx = 1, rowCount = 0;
+  const queryStartTime = Date.now();
 
   // Pre-create placeholder rows in input order so results appear in that order
   const placeholders = list.map((addr, i) => {
@@ -1219,9 +1243,6 @@ $('#run').addEventListener('click', async () => {
 
   await runPool(tasks, CONCURRENCY, (rows, taskIdx) => {
     completed++;
-    $('#bar').value = (completed / list.length) * 100;
-    $('#barTxt').textContent = `${completed}/${list.length}`;
-
     const placeholder = placeholders[taskIdx];
     let safeOrder = 0;
     for (const row of rows) {
@@ -1237,8 +1258,12 @@ $('#run').addEventListener('click', async () => {
         idx++;
       }
       safeOrder++;
+      rowCount++;
     }
     placeholder.remove();
+    const elapsed = Math.floor((Date.now() - queryStartTime) / 1000);
+    $('#bar').value = (completed / list.length) * 100;
+    $('#barTxt').textContent = L('progressTxt', completed, list.length, rowCount, fail, elapsed);
     applyColVisibility();
   });
 
