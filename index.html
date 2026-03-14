@@ -1291,6 +1291,15 @@ $('#run').addEventListener('click', async () => {
   $('#stop').style.display = 'none';
   $('#run').disabled = $('#csv').disabled = $('#json').disabled = false;
 
+  // 按 DOM 顺序（即输入顺序）重新编号
+  let num = 1;
+  for (const tr of $$('#tbl tbody tr')) {
+    tr.cells[0].textContent = num;
+    tr.dataset.rowIdx = String(num - 1);
+    num++;
+  }
+  resultMeta.sort((a, b) => a._origIdx - b._origIdx).forEach((m, i) => { m.idx = i + 1; });
+
   lastQueryStats = { total: list.length, rows: idx - 1, fail, stopped: abortFlag };
   $('#summary').textContent = L('summaryText', list.length, idx - 1, fail, abortFlag);
   $('#summary').style.display = 'block';
