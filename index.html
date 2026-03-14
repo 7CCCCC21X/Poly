@@ -102,8 +102,9 @@ table{width:100%;min-width:1000px;border-collapse:collapse;background:var(--c-ca
 th,td{padding:12px 10px;font-size:13px;text-align:left;transition:background .3s,border-color .3s}
 td{border-top:1px solid var(--c-border)}
 th{background:var(--c-primary);color:#fff;position:sticky;top:0;z-index:2;cursor:pointer;user-select:none;white-space:nowrap;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;padding:10px 8px}
-/* 等宽数字（不改对齐方向）*/
-td:nth-child(n+3):nth-child(-n+11){font-variant-numeric:tabular-nums}
+/* 等宽数字（居中对齐）*/
+td:nth-child(n+3):nth-child(-n+11){text-align:center;font-variant-numeric:tabular-nums}
+th:nth-child(n+3):nth-child(-n+11){text-align:center}
 /* 操作列居中 */
 th:nth-child(13),td:nth-child(13){text-align:center}
 th:hover{background:var(--c-primary-dark)}
@@ -142,8 +143,8 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
 .inactive{color:var(--c-red)}
 
 /* 复制按钮 & Toast */
-.copy{margin-left:4px;font-size:13px;color:var(--c-sub);cursor:pointer;transition:color .2s}
-.copy:hover{color:var(--c-primary)}
+.btn-copy{margin-left:6px;padding:1px 6px;font-size:11px;font-weight:500;color:var(--c-sub);background:transparent;border:1px solid var(--c-border);border-radius:4px;cursor:pointer;transition:all .15s;vertical-align:middle;letter-spacing:.2px}
+.btn-copy:hover{color:var(--c-primary);border-color:var(--c-primary);background:var(--c-hover);box-shadow:none;transform:none}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--c-tooltip);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.15)}
 
 /* 备注输入框 */
@@ -351,7 +352,7 @@ const i18n = {
     startQuery:'开始查询', stop:'停止', stopping:'正在停止...',
     exportCsv:'导出 CSV', exportJson:'导出 JSON',
     colToggle:'列显隐', searchPlaceholder:'搜索地址或数据...',
-    addNote:'添加备注', refresh:'刷新此行', themeTitle:'切换暗色/亮色模式',
+    addNote:'添加备注', copyBtn:'复制', refresh:'刷新此行', themeTitle:'切换暗色/亮色模式',
     thCols:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注','操作'],
     thTips:{
       total:'净资产 = 可用余额 + 持仓估值（USD）',
@@ -365,7 +366,7 @@ const i18n = {
       months:'历史累计活跃月数',
     },
     statLabels:['总盈亏','可用余额','持仓估值','净资产总计'],
-    statSubs:['历史累计 · USD','链上 USDC · 实时','当前市价 · USD','可用 + 持仓 · USD'],
+    statSubs:['历史累计 · USD','','','可用 + 持仓 · USD'],
     copied:'已复制', noInput:'请输入地址',
     invalidAddr:n=>`${n} 个地址格式无效，请检查`,
     dedupMsg:n=>`已自动去除 ${n} 个重复地址`,
@@ -402,7 +403,7 @@ const i18n = {
     startQuery:'Start Query', stop:'Stop', stopping:'Stopping...',
     exportCsv:'Export CSV', exportJson:'Export JSON',
     colToggle:'Columns', searchPlaceholder:'Search addresses or data...',
-    addNote:'Add note', refresh:'Refresh row', themeTitle:'Toggle dark/light mode',
+    addNote:'Add note', copyBtn:'Copy', refresh:'Refresh row', themeTitle:'Toggle dark/light mode',
     thCols:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes','Actions'],
     thTips:{
       total:'Net Assets = Available + Holdings (USD)',
@@ -416,7 +417,7 @@ const i18n = {
       months:'Total active trading months',
     },
     statLabels:['Total P&L','Available','Holdings','Net Assets'],
-    statSubs:['All-time · USD','On-chain USDC · live','Current value · USD','Available + Holdings · USD'],
+    statSubs:['All-time · USD','','','Available + Holdings · USD'],
     copied:'Copied', noInput:'Please enter addresses',
     invalidAddr:n=>`${n} invalid address(es), please check`,
     dedupMsg:n=>`Removed ${n} duplicate address(es)`,
@@ -1077,7 +1078,7 @@ function renderRowDirect(m, idx, insertBefore = null) {
 
   tr.innerHTML = `
     <td>${idx}</td>
-    <td>${clip(m.addr)}<span class="copy" data-addr>📋</span></td>
+    <td>${clip(m.addr)}<button class="btn-copy" data-addr aria-label="${L('copied')}">[${L('copyBtn')}]</button></td>
     <td>${fmtDec(total)}</td>
     <td class="${cls}">${sign} ${fmtInt(Math.abs(p))}</td>
     <td>${fmtDec(m.avail)}</td>
@@ -1087,7 +1088,7 @@ function renderRowDirect(m, idx, insertBefore = null) {
     <td class="${lastCls}">${fmtLast(m.act)}</td>
     <td>${m.act?.d ?? '-'}</td>
     <td>${m.act?.m ?? '-'}</td>
-    <td><input class="note-input" data-note placeholder="${L('addNote')}"></td>
+    <td><input class="note-input" data-note placeholder="✎ ${L('addNote')}"></td>
     <td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}">↻</button></td>`;
 
   tr.querySelector('[data-note]').value = getNote(m.addr) || '';
@@ -1111,11 +1112,37 @@ function appendErrDirect(code, addr, idx, insertBefore = null) {
   const tbody = $('#tbl tbody');
   const tr = document.createElement('tr');
   tr.dataset.fullAddr = addr.toLowerCase();
-  tr.innerHTML = `<td>${idx}</td><td>${clip(addr)}<span class="copy" data-addr>📋</span></td><td colspan="11"><span class="err-badge ${errBadgeCls(code)}">${errIcon(code)} ${errMsg(code)}</span></td>`;
+  tr.innerHTML = `<td>${idx}</td><td>${clip(addr)}<button class="btn-copy" data-addr aria-label="${L('copied')}">[${L('copyBtn')}]</button></td><td colspan="10"><span class="err-badge ${errBadgeCls(code)}">${errIcon(code)} ${errMsg(code)}</span></td><td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}">↻</button></td>`;
   tr.querySelector('[data-addr]').addEventListener('click', () => copy(addr));
+  tr.querySelector('[data-refresh]').addEventListener('click', () => refreshErrRow(tr, addr, idx));
   if (insertBefore) tbody.insertBefore(tr, insertBefore);
   else tbody.appendChild(tr);
   resultRows.push([idx, addr, errMsg(code)]);
+}
+
+async function refreshErrRow(tr, addr, idx) {
+  queryCache.delete(addr);
+  const btn = tr.querySelector('[data-refresh]');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const rows = await queryOne(addr);
+    const tbody = $('#tbl tbody');
+    for (const row of rows) {
+      const meta = { _origIdx: idx, idx, addr: row.disp, safe: row.safe, vol: row.vol, cnt: row.cnt, pro: row.pro, avail: row.avail, hold: row.hold, act: row.act };
+      if (row.err) {
+        appendErrDirect(row.err, row.disp, idx, tr);
+      } else {
+        resultMeta.push(meta);
+        renderRowDirect(meta, idx, tr);
+      }
+    }
+    tr.remove();
+    applyColVisibility();
+    toast(L('refreshOk'));
+  } catch {
+    if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+    toast(L('refreshFail'));
+  }
 }
 
 async function refreshRow(meta) {
@@ -1228,7 +1255,7 @@ $('#run').addEventListener('click', async () => {
   const placeholders = list.map((addr, i) => {
     const tr = document.createElement('tr');
     tr.className = 'row-placeholder';
-    tr.innerHTML = `<td>${i + 1}</td><td>${clip(addr)}<span class="copy" data-addr>📋</span></td><td colspan="11">⋯</td>`;
+    tr.innerHTML = `<td>${i + 1}</td><td>${clip(addr)}<button class="btn-copy" data-addr aria-label="${L('copied')}">[${L('copyBtn')}]</button></td><td colspan="11">⋯</td>`;
     tr.querySelector('[data-addr]').addEventListener('click', () => copy(addr));
     tbody.appendChild(tr);
     return tr;
