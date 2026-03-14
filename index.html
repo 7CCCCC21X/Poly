@@ -200,6 +200,8 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
 
 /* ── 错误状态徽标 ── */
 .err-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
+.row-placeholder{opacity:.45}
+.row-placeholder td:last-child,.row-placeholder td:nth-child(3){color:var(--c-sub);letter-spacing:3px}
 .err-no-safe{background:rgba(100,116,139,.1);color:var(--c-sub)}
 .err-api-fail{background:rgba(239,68,68,.1);color:var(--c-red)}
 .err-timeout{background:rgba(245,158,11,.1);color:#d97706}
@@ -1044,7 +1046,7 @@ function sortAndRender() {
   renderAll();
 }
 
-function renderRowDirect(m, idx) {
+function renderRowDirect(m, idx, insertBefore = null) {
   const tbody = $('#tbl tbody');
   const p = toNum(m.pro);
   const sign = p < 0 ? '▼' : '▲';
@@ -1077,7 +1079,8 @@ function renderRowDirect(m, idx) {
     saveNote(m.addr, this.value.trim());
   });
 
-  tbody.appendChild(tr);
+  if (insertBefore) tbody.insertBefore(tr, insertBefore);
+  else tbody.appendChild(tr);
 
   resultRows.push([
     idx, m.addr, fmtDec(total), `${sign} ${fmtInt(Math.abs(p))}`,
@@ -1086,13 +1089,14 @@ function renderRowDirect(m, idx) {
   ]);
 }
 
-function appendErrDirect(code, addr, idx) {
+function appendErrDirect(code, addr, idx, insertBefore = null) {
   const tbody = $('#tbl tbody');
   const tr = document.createElement('tr');
   tr.dataset.fullAddr = addr.toLowerCase();
   tr.innerHTML = `<td>${idx}</td><td>${clip(addr)}<span class="copy" data-addr>📋</span></td><td colspan="11"><span class="err-badge ${errBadgeCls(code)}">${errIcon(code)} ${errMsg(code)}</span></td>`;
   tr.querySelector('[data-addr]').addEventListener('click', () => copy(addr));
-  tbody.appendChild(tr);
+  if (insertBefore) tbody.insertBefore(tr, insertBefore);
+  else tbody.appendChild(tr);
   resultRows.push([idx, addr, errMsg(code)]);
 }
 
@@ -1201,26 +1205,40 @@ $('#run').addEventListener('click', async () => {
 
   let completed = 0, fail = 0, idx = 1;
 
+  // Pre-create placeholder rows in input order so results appear in that order
+  const placeholders = list.map((addr, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'row-placeholder';
+    tr.innerHTML = `<td>${i + 1}</td><td>${clip(addr)}<span class="copy" data-addr>📋</span></td><td colspan="11">⋯</td>`;
+    tr.querySelector('[data-addr]').addEventListener('click', () => copy(addr));
+    tbody.appendChild(tr);
+    return tr;
+  });
+
   const tasks = list.map(owner => () => queryOne(owner));
 
-  await runPool(tasks, CONCURRENCY, (rows) => {
+  await runPool(tasks, CONCURRENCY, (rows, taskIdx) => {
     completed++;
     $('#bar').value = (completed / list.length) * 100;
     $('#barTxt').textContent = `${completed}/${list.length}`;
 
+    const placeholder = placeholders[taskIdx];
+    let safeOrder = 0;
     for (const row of rows) {
       if (row.err) {
-        const meta = { _origIdx: idx, idx, addr: row.disp, err: row.err };
+        const meta = { _origIdx: taskIdx * 1000 + safeOrder, idx, addr: row.disp, err: row.err };
         resultMeta.push(meta);
-        appendErrDirect(row.err, row.disp, idx);
+        appendErrDirect(row.err, row.disp, idx, placeholder);
         idx++; fail++;
       } else {
-        const meta = { _origIdx: idx, idx, addr: row.disp, safe: row.safe, vol: row.vol, cnt: row.cnt, pro: row.pro, avail: row.avail, hold: row.hold, act: row.act };
+        const meta = { _origIdx: taskIdx * 1000 + safeOrder, idx, addr: row.disp, safe: row.safe, vol: row.vol, cnt: row.cnt, pro: row.pro, avail: row.avail, hold: row.hold, act: row.act };
         resultMeta.push(meta);
-        renderRowDirect(meta, idx);
+        renderRowDirect(meta, idx, placeholder);
         idx++;
       }
+      safeOrder++;
     }
+    placeholder.remove();
     applyColVisibility();
   });
 
