@@ -193,12 +193,7 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
 /* ── 帮助提示（替代红色 VPN 警告）── */
 .help-tip{display:flex;align-items:flex-start;gap:10px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:8px;padding:10px 14px;margin:10px 0;font-size:13px}
 .help-tip .help-icon{font-size:15px;flex-shrink:0;margin-top:2px}
-.help-tip details{width:100%}
-.help-tip summary{cursor:pointer;font-weight:600;color:var(--c-primary);user-select:none;list-style:none}
-.help-tip summary::-webkit-details-marker{display:none}
-.help-tip summary::before{content:'▶ ';font-size:10px;opacity:.7}
-details[open] .help-tip summary::before{content:'▼ '}
-.help-tip .help-body{margin-top:8px;color:var(--c-sub);line-height:1.8}
+.help-tip span:last-child{color:var(--c-sub)}
 
 /* ── 汇总卡片副标题 ── */
 .stat-card .stat-sub{font-size:11px;color:var(--c-sub);margin-top:5px;opacity:.8;letter-spacing:.2px}
@@ -252,13 +247,10 @@ details[open] .help-tip summary::before{content:'▼ '}
     </div>
   </div>
 
-  <!-- 帮助提示（替代红色 VPN 警告）-->
+  <!-- 帮助提示 -->
   <div class="help-tip">
     <span class="help-icon">💡</span>
-    <details>
-      <summary id="helpSummary"></summary>
-      <div class="help-body" id="helpBody"></div>
-    </details>
+    <span id="helpBody"></span>
   </div>
 
   <div class="history-wrap" id="historyWrap" style="display:none">
@@ -349,8 +341,7 @@ const i18n = {
     tabPaste:'粘贴地址', tabUpload:'上传文件',
     uploadTitle:'拖拽文件至此处', uploadSub:'支持 CSV 或 TXT 格式，每行一个地址',
     uploadBtn:'或点击选择文件',
-    helpSummary:'查询提示',
-    helpBody:'本工具通过 Polymarket API 查询链上数据，需访问境外服务。<br>查询失败时可尝试：① 将 VPN 切换至「全局模式」&nbsp; ② 稍后重试 &nbsp;③ 点击行内刷新按钮<br>「未找到关联账户」= 地址未在 Polymarket 注册；「请求超时」= 网络问题，可刷新重试。',
+    helpBody:'使用前请确认 VPN 已切换至「全局模式」，否则可能导致查询失败',
     historyTitle:'查询历史', clearHistory:'清空历史',
     startQuery:'开始查询', stop:'停止', stopping:'正在停止...',
     exportCsv:'导出 CSV', exportJson:'导出 JSON',
@@ -400,8 +391,7 @@ const i18n = {
     tabPaste:'Paste Addresses', tabUpload:'Upload File',
     uploadTitle:'Drag & drop a file here', uploadSub:'CSV or TXT, one address per line',
     uploadBtn:'or click to browse',
-    helpSummary:'Query tips',
-    helpBody:'This tool queries on-chain data via the Polymarket API, which requires access to overseas services.<br>If queries fail, try: ① Switch VPN to "Global Mode" &nbsp; ② Retry after a moment &nbsp; ③ Click the row refresh button<br>"No account found" = address not registered on Polymarket; "Request timed out" = network issue, try refreshing the row.',
+    helpBody:'Please ensure your VPN is set to "Global Mode" before querying, otherwise queries may fail.',
     historyTitle:'Query History', clearHistory:'Clear History',
     startQuery:'Start Query', stop:'Stop', stopping:'Stopping...',
     exportCsv:'Export CSV', exportJson:'Export JSON',
@@ -734,8 +724,7 @@ function applyLang() {
   $('#uploadTitle').textContent = L('uploadTitle');
   $('#uploadSub').textContent = L('uploadSub');
   $('#uploadBtn').textContent = L('uploadBtn');
-  $('#helpSummary').textContent = L('helpSummary');
-  $('#helpBody').innerHTML = L('helpBody');
+  $('#helpBody').textContent = L('helpBody');
   $('#historySummary').textContent = L('historyTitle');
   $('#clearHistory').textContent = L('clearHistory');
   $('#run').textContent = L('startQuery');
