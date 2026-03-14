@@ -176,6 +176,43 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
   .author-badge{margin-left:0;margin-top:8px;display:flex}
   .tg-badge{margin-left:0;margin-top:8px;display:flex}
 }
+
+/* ── 导入区 Tab ── */
+.import-tabs{display:flex;gap:0;margin-bottom:14px;border-bottom:2px solid var(--c-border)}
+.import-tab{padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;color:var(--c-sub);border:none;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;border-radius:0;transition:color .2s,border-color .2s}
+.import-tab:hover:not(:disabled){background:var(--c-hover);box-shadow:none;transform:none;color:var(--c-primary)}
+.import-tab.active{color:var(--c-primary);border-bottom-color:var(--c-primary)}
+
+/* ── 上传拖拽区 ── */
+.upload-zone{border:2px dashed var(--c-border);border-radius:10px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--c-input-bg)}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--c-primary);background:var(--c-summary-bg)}
+.upload-zone .upload-icon{font-size:40px;margin-bottom:10px}
+.upload-zone .upload-title{font-size:15px;font-weight:600;color:var(--c-text);margin-bottom:4px}
+.upload-zone .upload-sub{font-size:13px;color:var(--c-sub);margin-bottom:14px}
+
+/* ── 帮助提示（替代红色 VPN 警告）── */
+.help-tip{display:flex;align-items:flex-start;gap:10px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:8px;padding:10px 14px;margin:10px 0;font-size:13px}
+.help-tip .help-icon{font-size:15px;flex-shrink:0;margin-top:2px}
+.help-tip details{width:100%}
+.help-tip summary{cursor:pointer;font-weight:600;color:var(--c-primary);user-select:none;list-style:none}
+.help-tip summary::-webkit-details-marker{display:none}
+.help-tip summary::before{content:'▶ ';font-size:10px;opacity:.7}
+details[open] .help-tip summary::before{content:'▼ '}
+.help-tip .help-body{margin-top:8px;color:var(--c-sub);line-height:1.8}
+
+/* ── 汇总卡片副标题 ── */
+.stat-card .stat-sub{font-size:11px;color:var(--c-sub);margin-top:5px;opacity:.8;letter-spacing:.2px}
+
+/* ── 错误状态徽标 ── */
+.err-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
+.err-no-safe{background:rgba(100,116,139,.1);color:var(--c-sub)}
+.err-api-fail{background:rgba(239,68,68,.1);color:var(--c-red)}
+.err-timeout{background:rgba(245,158,11,.1);color:#d97706}
+[data-theme="dark"] .err-timeout{color:#fbbf24}
+
+/* ── 图标按钮（刷新） ── */
+.btn-icon{padding:4px 9px;font-size:15px;background:transparent;color:var(--c-sub);border:1px solid var(--c-border);border-radius:6px}
+.btn-icon:hover:not(:disabled){color:var(--c-primary);background:var(--c-hover);box-shadow:none;transform:none}
 </style>
 </head>
 
@@ -193,8 +230,36 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
 </div>
 
 <div class="card">
-  <textarea id="input"></textarea>
-  <div class="center"><p class="note" id="vpnTip"></p></div>
+  <!-- 导入区 Tab -->
+  <div class="import-tabs">
+    <button class="import-tab active" id="tabPaste" type="button"></button>
+    <button class="import-tab" id="tabUpload" type="button"></button>
+  </div>
+
+  <!-- 粘贴模式 -->
+  <div id="panePaste">
+    <textarea id="input"></textarea>
+  </div>
+
+  <!-- 上传模式 -->
+  <div id="paneUpload" style="display:none">
+    <div class="upload-zone" id="uploadZone">
+      <div class="upload-icon">📂</div>
+      <div class="upload-title" id="uploadTitle"></div>
+      <div class="upload-sub" id="uploadSub"></div>
+      <button class="btn-sm" id="uploadBtn" type="button"></button>
+      <input type="file" id="fileInput" accept=".csv,.txt" style="display:none">
+    </div>
+  </div>
+
+  <!-- 帮助提示（替代红色 VPN 警告）-->
+  <div class="help-tip">
+    <span class="help-icon">💡</span>
+    <details>
+      <summary id="helpSummary"></summary>
+      <div class="help-body" id="helpBody"></div>
+    </details>
+  </div>
 
   <div class="history-wrap" id="historyWrap" style="display:none">
     <details>
@@ -218,18 +283,22 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
     <div class="stat-card">
       <div class="stat-label" id="labelProfit"></div>
       <div class="stat-value" id="statProfit">-</div>
+      <div class="stat-sub" id="subProfit"></div>
     </div>
     <div class="stat-card">
       <div class="stat-label" id="labelAvail"></div>
       <div class="stat-value" id="statAvail">-</div>
+      <div class="stat-sub" id="subAvail"></div>
     </div>
     <div class="stat-card">
       <div class="stat-label" id="labelHold"></div>
       <div class="stat-value" id="statHold">-</div>
+      <div class="stat-sub" id="subHold"></div>
     </div>
     <div class="stat-card">
       <div class="stat-label" id="labelTotal"></div>
       <div class="stat-value" id="statTotal">-</div>
+      <div class="stat-sub" id="subTotal"></div>
     </div>
   </div>
 
@@ -247,15 +316,15 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
         <tr>
           <th data-col="0" data-key="idx"># <span class="sort-hint">↺</span></th>
           <th data-col="1" data-key="addr"><span class="sort-hint">⇅</span></th>
-          <th data-col="2" data-key="vol"><span class="sort-hint">⇅</span></th>
-          <th data-col="3" data-key="cnt"><span class="sort-hint">⇅</span></th>
-          <th data-col="4" data-key="pro"><span class="sort-hint">⇅</span></th>
-          <th data-col="5" data-key="avail"><span class="sort-hint">⇅</span></th>
-          <th data-col="6" data-key="hold"><span class="sort-hint">⇅</span></th>
-          <th data-col="7" data-key="total"><span class="sort-hint">⇅</span></th>
-          <th data-col="8" data-key="days"><span class="sort-hint">⇅</span></th>
-          <th data-col="9" data-key="months"><span class="sort-hint">⇅</span></th>
-          <th data-col="10" data-key="last"><span class="sort-hint">⇅</span></th>
+          <th data-col="2" data-key="total"><span class="sort-hint">⇅</span></th>
+          <th data-col="3" data-key="pro"><span class="sort-hint">⇅</span></th>
+          <th data-col="4" data-key="avail"><span class="sort-hint">⇅</span></th>
+          <th data-col="5" data-key="hold"><span class="sort-hint">⇅</span></th>
+          <th data-col="6" data-key="vol"><span class="sort-hint">⇅</span></th>
+          <th data-col="7" data-key="cnt"><span class="sort-hint">⇅</span></th>
+          <th data-col="8" data-key="last"><span class="sort-hint">⇅</span></th>
+          <th data-col="9" data-key="days"><span class="sort-hint">⇅</span></th>
+          <th data-col="10" data-key="months"><span class="sort-hint">⇅</span></th>
           <th data-col="11" data-key="note"></th>
           <th data-col="12" data-key="refresh"></th>
         </tr>
@@ -276,15 +345,31 @@ tfoot td{background:var(--c-summary-bg);font-weight:700;border-top:2px solid var
 const i18n = {
   zh: {
     title:'数据批量查询', subtitle:'粘贴地址（每行一个），或拖入 CSV / TXT 文件',
-    placeholder:'每行粘贴一个地址，或将 CSV/TXT 文件拖拽到此处...',
-    vpnTip:'提示：查询前请将 VPN 切换到「全局模式」',
+    placeholder:'每行粘贴一个地址...',
+    tabPaste:'粘贴地址', tabUpload:'上传文件',
+    uploadTitle:'拖拽文件至此处', uploadSub:'支持 CSV 或 TXT 格式，每行一个地址',
+    uploadBtn:'或点击选择文件',
+    helpSummary:'查询提示',
+    helpBody:'本工具通过 Polymarket API 查询链上数据，需访问境外服务。<br>查询失败时可尝试：① 将 VPN 切换至「全局模式」&nbsp; ② 稍后重试 &nbsp;③ 点击行内刷新按钮<br>「未找到关联账户」= 地址未在 Polymarket 注册；「请求超时」= 网络问题，可刷新重试。',
     historyTitle:'查询历史', clearHistory:'清空历史',
     startQuery:'开始查询', stop:'停止', stopping:'正在停止...',
     exportCsv:'导出 CSV', exportJson:'导出 JSON',
     colToggle:'列显隐', searchPlaceholder:'搜索地址或数据...',
-    addNote:'添加备注', refresh:'刷新', themeTitle:'切换暗色/亮色模式',
-    thCols:['#','地址','交易额','池子数','盈亏','可用','持仓','总余额','日活','月活','最后活跃','备注','操作'],
-    statLabels:['总盈亏','可用资金总额','持仓总额','所有地址总余额'],
+    addNote:'添加备注', refresh:'刷新此行', themeTitle:'切换暗色/亮色模式',
+    thCols:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','日活','月活','备注','操作'],
+    thTips:{
+      total:'净资产 = 可用余额 + 持仓估值（USD）',
+      pro:'历史累计盈亏（USD）',
+      avail:'链上 USDC 可用余额（实时查询）',
+      hold:'当前持仓估值（USD）',
+      vol:'历史累计交易额（USD）',
+      cnt:'参与的预测市场池数量',
+      last:'最近一次交易距今天数',
+      days:'历史累计活跃交易天数',
+      months:'历史累计活跃月数',
+    },
+    statLabels:['总盈亏','可用余额','持仓估值','净资产总计'],
+    statSubs:['历史累计 · USD','链上 USDC · 实时','当前市价 · USD','可用 + 持仓 · USD'],
     copied:'已复制', noInput:'请输入地址',
     invalidAddr:n=>`${n} 个地址格式无效，请检查`,
     dedupMsg:n=>`已自动去除 ${n} 个重复地址`,
@@ -296,29 +381,46 @@ const i18n = {
     orderRestored:'已恢复输入顺序',
     sortClickTip:'点击排序', resetOrderTip:'点击恢复输入顺序',
     today:'今天', daysAgo:n=>`${n}天前`,
-    noDataErr:'无数据', subQueryFail:'子查询失败',
+    noSafeErr:'未找到关联账户', apiFailErr:'接口请求失败', timeoutErr:'请求超时',
     summaryText:(total,rows,fail,stopped)=>{
-      let s=`共查询 ${total} 个输入地址，生成 ${rows} 行数据`;
-      if(fail) s+=`，其中 ${fail} 个地址暂无数据`;
+      const ok=rows-fail;
+      let s=`已查询 ${total} 个地址，成功 ${ok} 个`;
+      if(fail) s+=`，${fail} 个失败或无数据`;
       if(stopped) s+='（已中断）'; return s;
     },
     footSummary:'汇总', footRows:n=>`${n} 行`,
     historyEntry:n=>`${n} 个地址`, historyDel:'删',
-    csvHeaders:['#','地址','交易额','池子数','盈亏','可用','持仓','总余额','日活','月活','最后活跃','备注'],
+    csvHeaders:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','日活','月活','备注'],
     offlineMsg:'网络已断开，请检查连接后重试',
     tgGroup:'加入交流群',
   },
   en: {
-    title:'Batch Query', subtitle:'Paste addresses (one per line), or drag in CSV / TXT files. Supports concurrent queries & real-time updates.',
-    placeholder:'Paste one address per line, or drag & drop CSV/TXT files here...',
-    vpnTip:'Tip: Switch your VPN to "Global Mode" before querying',
+    title:'Batch Query', subtitle:'Paste addresses (one per line), or drag in CSV / TXT files.',
+    placeholder:'Paste one address per line...',
+    tabPaste:'Paste Addresses', tabUpload:'Upload File',
+    uploadTitle:'Drag & drop a file here', uploadSub:'CSV or TXT, one address per line',
+    uploadBtn:'or click to browse',
+    helpSummary:'Query tips',
+    helpBody:'This tool queries on-chain data via the Polymarket API, which requires access to overseas services.<br>If queries fail, try: ① Switch VPN to "Global Mode" &nbsp; ② Retry after a moment &nbsp; ③ Click the row refresh button<br>"No account found" = address not registered on Polymarket; "Request timed out" = network issue, try refreshing the row.',
     historyTitle:'Query History', clearHistory:'Clear History',
     startQuery:'Start Query', stop:'Stop', stopping:'Stopping...',
     exportCsv:'Export CSV', exportJson:'Export JSON',
     colToggle:'Columns', searchPlaceholder:'Search addresses or data...',
-    addNote:'Add note', refresh:'Refresh', themeTitle:'Toggle dark/light mode',
-    thCols:['#','Address','Volume','Pools','P&L','Available','Holdings','Balance','Days','Months','Last Active','Notes','Actions'],
-    statLabels:['Total P&L','Total Available','Total Holdings','Total Balance'],
+    addNote:'Add note', refresh:'Refresh row', themeTitle:'Toggle dark/light mode',
+    thCols:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Days','Months','Notes','Actions'],
+    thTips:{
+      total:'Net Assets = Available + Holdings (USD)',
+      pro:'All-time cumulative P&L (USD)',
+      avail:'On-chain USDC balance (live)',
+      hold:'Current holdings value (USD)',
+      vol:'All-time trading volume (USD)',
+      cnt:'Number of prediction markets joined',
+      last:'Days since last trade',
+      days:'Total active trading days',
+      months:'Total active trading months',
+    },
+    statLabels:['Total P&L','Available','Holdings','Net Assets'],
+    statSubs:['All-time · USD','On-chain USDC · live','Current value · USD','Available + Holdings · USD'],
     copied:'Copied', noInput:'Please enter addresses',
     invalidAddr:n=>`${n} invalid address(es), please check`,
     dedupMsg:n=>`Removed ${n} duplicate address(es)`,
@@ -330,15 +432,16 @@ const i18n = {
     orderRestored:'Input order restored',
     sortClickTip:'Click to sort', resetOrderTip:'Click to restore input order',
     today:'Today', daysAgo:n=>`${n}d ago`,
-    noDataErr:'No data', subQueryFail:'Sub-query failed',
+    noSafeErr:'No account found', apiFailErr:'API request failed', timeoutErr:'Request timed out',
     summaryText:(total,rows,fail,stopped)=>{
-      let s=`Queried ${total} input address(es), generated ${rows} row(s)`;
-      if(fail) s+=`, ${fail} address(es) have no data`;
+      const ok=rows-fail;
+      let s=`Queried ${total} address(es) — ${ok} succeeded`;
+      if(fail) s+=`, ${fail} failed or no data`;
       if(stopped) s+=' (interrupted)'; return s;
     },
     footSummary:'Total', footRows:n=>`${n} rows`,
     historyEntry:n=>`${n} address(es)`, historyDel:'Del',
-    csvHeaders:['#','Address','Volume','Pools','P&L','Available','Holdings','Balance','Days','Months','Last Active','Notes'],
+    csvHeaders:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Days','Months','Notes'],
     offlineMsg:'Network disconnected. Please check your connection and retry.',
     tgGroup:'Join Group',
   }
@@ -378,7 +481,7 @@ const fmtInt = n => {
 const fmtDec = n => {
   const v = toNum(n);
   if (isNaN(v)) return '-';
-  return v.toLocaleString('en-US', { minimumFractionDigits: v % 1 ? 2 : 0 });
+  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const clip = a => a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
@@ -520,12 +623,24 @@ const api = {
 };
 
 /* error codes instead of localized strings */
-const ERR_NO_DATA = 'ERR_NO_DATA';
-const ERR_SUB_QUERY = 'ERR_SUB_QUERY';
+const ERR_NO_SAFE   = 'ERR_NO_SAFE';   // 地址未找到关联 Safe 账户
+const ERR_API_FAIL  = 'ERR_API_FAIL';  // API 请求失败
+const ERR_TIMEOUT   = 'ERR_TIMEOUT';   // 请求超时
 function errMsg(code) {
-  if (code === ERR_NO_DATA) return L('noDataErr');
-  if (code === ERR_SUB_QUERY) return L('subQueryFail');
+  if (code === ERR_NO_SAFE)  return L('noSafeErr');
+  if (code === ERR_API_FAIL) return L('apiFailErr');
+  if (code === ERR_TIMEOUT)  return L('timeoutErr');
   return code;
+}
+function errIcon(code) {
+  if (code === ERR_NO_SAFE)  return '○';
+  if (code === ERR_TIMEOUT)  return '⏱';
+  return '✕';
+}
+function errBadgeCls(code) {
+  if (code === ERR_NO_SAFE)  return 'err-no-safe';
+  if (code === ERR_TIMEOUT)  return 'err-timeout';
+  return 'err-api-fail';
 }
 
 async function queryOne(owner) {
@@ -544,7 +659,7 @@ async function queryOne(owner) {
   } catch (_) {}
 
   if (!safes.length) {
-    const result = [{ disp: owner, err: ERR_NO_DATA }];
+    const result = [{ disp: owner, err: ERR_NO_SAFE }];
     queryCache.set(owner, result);
     return result;
   }
@@ -558,8 +673,9 @@ async function queryOne(owner) {
         api.value(safe),  api.activity(safe), api.usdc(safe)
       ]);
       rows.push({ disp: owner, safe, vol, cnt, pro, avail, hold, act });
-    } catch (_) {
-      rows.push({ disp: owner, err: ERR_SUB_QUERY });
+    } catch (e) {
+      const isTimeout = e?.name === 'AbortError' || (e?.message || '').toLowerCase().includes('timeout');
+      rows.push({ disp: owner, err: isTimeout ? ERR_TIMEOUT : ERR_API_FAIL });
     }
   }
   queryCache.set(owner, rows);
@@ -613,7 +729,13 @@ function applyLang() {
   $('#pageTitle').textContent = L('title');
   $('#subtitleEl').textContent = L('subtitle');
   $('#input').placeholder = L('placeholder');
-  $('#vpnTip').textContent = L('vpnTip');
+  $('#tabPaste').textContent = L('tabPaste');
+  $('#tabUpload').textContent = L('tabUpload');
+  $('#uploadTitle').textContent = L('uploadTitle');
+  $('#uploadSub').textContent = L('uploadSub');
+  $('#uploadBtn').textContent = L('uploadBtn');
+  $('#helpSummary').textContent = L('helpSummary');
+  $('#helpBody').innerHTML = L('helpBody');
   $('#historySummary').textContent = L('historyTitle');
   $('#clearHistory').textContent = L('clearHistory');
   $('#run').textContent = L('startQuery');
@@ -625,20 +747,22 @@ function applyLang() {
   $('#offlineBanner').textContent = L('offlineMsg');
   $('#tgText').textContent = L('tgGroup');
 
-  // table headers
+  // table headers + tooltips
   const cols = L('thCols');
+  const tips = L('thTips') || {};
   $$('#tbl thead th').forEach((th, i) => {
     if (i >= cols.length) return;
-    // update text node before any child elements (sort-hint, sort-arrow)
     const firstText = th.firstChild;
     if (firstText && firstText.nodeType === 3) {
       firstText.textContent = cols[i] + ' ';
     } else {
       th.insertBefore(document.createTextNode(cols[i] + ' '), th.firstChild);
     }
-    // update tooltips
-    if (th.dataset.key === 'idx') th.title = L('resetOrderTip');
-    else if (th.dataset.key && th.dataset.key !== 'note' && th.dataset.key !== 'refresh') th.title = L('sortClickTip');
+    const key = th.dataset.key;
+    if (key === 'idx') th.title = L('resetOrderTip');
+    else if (key && key !== 'note' && key !== 'refresh') {
+      th.title = tips[key] ? `${tips[key]}  —  ${L('sortClickTip')}` : L('sortClickTip');
+    }
   });
 
   // stat card labels
@@ -682,23 +806,56 @@ inputEl.addEventListener('drop', e => {
   e.preventDefault();
   inputEl.classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
-  if (file && /\.(csv|txt)$/i.test(file.name)) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = reader.result;
-      const addrs = text.match(/0x[0-9a-fA-F]{40}/g);
-      if (addrs?.length) {
-        inputEl.value = [...new Set(addrs)].join('\n');
-        toast(L('importOk', new Set(addrs).size));
-      } else {
-        toast(L('importNoAddr'));
-      }
-    };
-    reader.readAsText(file);
-  } else {
-    toast(L('importFileType'));
-  }
+  if (file) handleFileImport(file);
 });
+
+/* ── 导入区 Tab ── */
+$('#tabPaste').addEventListener('click', () => {
+  $('#tabPaste').classList.add('active');
+  $('#tabUpload').classList.remove('active');
+  $('#panePaste').style.display = '';
+  $('#paneUpload').style.display = 'none';
+});
+$('#tabUpload').addEventListener('click', () => {
+  $('#tabUpload').classList.add('active');
+  $('#tabPaste').classList.remove('active');
+  $('#paneUpload').style.display = '';
+  $('#panePaste').style.display = 'none';
+});
+
+/* ── 文件上传区 ── */
+const uploadZone = $('#uploadZone');
+const fileInput  = $('#fileInput');
+$('#uploadBtn').addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFileImport(fileInput.files[0]);
+  fileInput.value = '';
+});
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFileImport(e.dataTransfer.files[0]);
+});
+
+function handleFileImport(file) {
+  if (!/\.(csv|txt)$/i.test(file.name)) return toast(L('importFileType'));
+  const reader = new FileReader();
+  reader.onload = () => {
+    const addrs = reader.result.match(/0x[0-9a-fA-F]{40}/g);
+    if (addrs?.length) {
+      const unique = [...new Set(addrs)];
+      inputEl.value = unique.join('\n');
+      $('#tabPaste').click();
+      toast(L('importOk', unique.length));
+    } else {
+      toast(L('importNoAddr'));
+    }
+  };
+  reader.readAsText(file);
+}
 
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
@@ -913,17 +1070,17 @@ function renderRowDirect(m, idx) {
   tr.innerHTML = `
     <td>${idx}</td>
     <td>${clip(m.addr)}<span class="copy" data-addr>📋</span></td>
-    <td>${fmtInt(m.vol)}</td>
-    <td>${m.cnt}</td>
+    <td>${fmtDec(total)}</td>
     <td class="${cls}">${sign} ${fmtInt(Math.abs(p))}</td>
     <td>${fmtDec(m.avail)}</td>
     <td>${fmtDec(m.hold)}</td>
-    <td>${fmtDec(total)}</td>
+    <td>${fmtInt(m.vol)}</td>
+    <td>${m.cnt}</td>
+    <td class="${lastCls}">${fmtLast(m.act)}</td>
     <td>${m.act?.d ?? '-'}</td>
     <td>${m.act?.m ?? '-'}</td>
-    <td class="${lastCls}">${fmtLast(m.act)}</td>
     <td><input class="note-input" data-note placeholder="${L('addNote')}" value="${(getNote(m.addr) || '').replace(/"/g, '&quot;')}"></td>
-    <td><button class="btn-sm" data-refresh>${L('refresh')}</button></td>`;
+    <td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}">↻</button></td>`;
 
   tr.querySelector('[data-addr]').addEventListener('click', () => copy(m.addr));
   tr.querySelector('[data-refresh]').addEventListener('click', () => refreshRow(m));
@@ -934,9 +1091,9 @@ function renderRowDirect(m, idx) {
   tbody.appendChild(tr);
 
   resultRows.push([
-    idx, m.addr, fmtInt(m.vol), m.cnt, `${sign} ${fmtInt(Math.abs(p))}`,
-    fmtDec(m.avail), fmtDec(m.hold), fmtDec(total),
-    m.act?.d ?? 0, m.act?.m ?? 0, fmtLast(m.act), getNote(m.addr)
+    idx, m.addr, fmtDec(total), `${sign} ${fmtInt(Math.abs(p))}`,
+    fmtDec(m.avail), fmtDec(m.hold), fmtInt(m.vol), m.cnt,
+    fmtLast(m.act), m.act?.d ?? 0, m.act?.m ?? 0, getNote(m.addr)
   ]);
 }
 
@@ -944,7 +1101,8 @@ function appendErrDirect(code, addr, idx) {
   const tbody = $('#tbl tbody');
   const tr = document.createElement('tr');
   tr.dataset.fullAddr = addr.toLowerCase();
-  tr.innerHTML = `<td>${idx}</td><td>${clip(addr)}</td><td colspan="11" class="negative">${errMsg(code)}</td>`;
+  tr.innerHTML = `<td>${idx}</td><td>${clip(addr)}<span class="copy" data-addr>📋</span></td><td colspan="11"><span class="err-badge ${errBadgeCls(code)}">${errIcon(code)} ${errMsg(code)}</span></td>`;
+  tr.querySelector('[data-addr]').addEventListener('click', () => copy(addr));
   tbody.appendChild(tr);
   resultRows.push([idx, addr, errMsg(code)]);
 }
@@ -997,14 +1155,20 @@ function updateSummaryStats() {
   $('#statAvail').textContent = `$${fmtDec(sumAvail)}`;
   $('#statHold').textContent = `$${fmtDec(sumHold)}`;
   $('#statTotal').textContent = `$${fmtDec(sumTotal)}`;
+  const ss = L('statSubs');
+  $('#subProfit').textContent = ss[0];
+  $('#subAvail').textContent  = ss[1];
+  $('#subHold').textContent   = ss[2];
+  $('#subTotal').textContent  = ss[3];
   cards.style.display = 'grid';
 
   tfootRow.innerHTML = `
     <td>${L('footSummary')}</td><td>${L('footRows', valid.length)}</td>
-    <td>${fmtInt(sumVol)}</td><td>-</td>
+    <td>${fmtDec(sumTotal)}</td>
     <td class="${proCls}">${proSign} ${fmtInt(Math.abs(sumPro))}</td>
-    <td>${fmtDec(sumAvail)}</td><td>${fmtDec(sumHold)}</td><td>${fmtDec(sumTotal)}</td>
-    <td>${avgDays}</td><td>${avgMonths}</td><td>-</td><td>-</td><td>-</td>`;
+    <td>${fmtDec(sumAvail)}</td><td>${fmtDec(sumHold)}</td>
+    <td>${fmtInt(sumVol)}</td><td>-</td>
+    <td>-</td><td>${avgDays}</td><td>${avgMonths}</td><td>-</td><td>-</td>`;
 
   tfoot.style.display = '';
   applyColVisibility();
