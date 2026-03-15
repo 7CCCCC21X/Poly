@@ -600,18 +600,27 @@ const api = {
     .then(d => d[0]?.value ?? '-'),
   activity: async a => {
     try {
-      const d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=999&offset=0`);
-      if (!d.length) return { d: 0, m: 0, lastGap: undefined, thisMonth: false };
-      d.sort((x, y) => y.timestamp - x.timestamp);
+      const PAGE = 1000;
       const days = new Set(), months = new Set();
-      for (const item of d) {
-        const ts = item.timestamp * 1000;
-        const date = new Date(ts);
-        const y = date.getFullYear(), mo = date.getMonth() + 1, day = date.getDate();
-        days.add(y * 10000 + mo * 100 + day);
-        months.add(y * 100 + mo);
+      let offset = 0, latestTs = null;
+      while (true) {
+        let d;
+        try {
+          d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=${PAGE}&offset=${offset}`);
+        } catch (_) { break; }
+        if (!Array.isArray(d) || !d.length) break;
+        for (const item of d) {
+          const date = new Date(item.timestamp * 1000);
+          const y = date.getFullYear(), mo = date.getMonth() + 1, day = date.getDate();
+          days.add(y * 10000 + mo * 100 + day);
+          months.add(y * 100 + mo);
+          if (latestTs === null || item.timestamp > latestTs) latestTs = item.timestamp;
+        }
+        if (d.length < PAGE) break;
+        offset += PAGE;
       }
-      const latest = new Date(d[0].timestamp * 1000);
+      if (latestTs === null) return { d: 0, m: 0, lastGap: undefined, thisMonth: false };
+      const latest = new Date(latestTs * 1000);
       const now = new Date();
       const thisMonth = latest.getFullYear() === now.getFullYear() && latest.getMonth() === now.getMonth();
       const gap = Math.floor((Date.now() - latest.getTime()) / MS_PER_DAY);
