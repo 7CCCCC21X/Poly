@@ -221,6 +221,7 @@ tfoot{display:none}
 .addr-type-toggle label{display:flex;align-items:center;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;color:var(--c-sub);transition:all .2s;user-select:none;white-space:nowrap}
 .addr-type-toggle label:has(input:checked){background:var(--c-card);color:var(--c-primary);box-shadow:var(--shadow)}
 .addr-type-toggle input[type=radio]{display:none}
+.addr-type-hint{font-size:12px;color:var(--c-sub);margin:-4px 0 10px;line-height:1.5}
 </style>
 </head>
 
@@ -282,6 +283,7 @@ tfoot{display:none}
       <label><input type="radio" name="addrType" value="polymarket"><span id="addrTypePoly"></span></label>
     </div>
   </div>
+  <p class="addr-type-hint" id="addrTypeHint"></p>
 
   <div class="toolbar">
     <button id="run"></button>
@@ -396,8 +398,8 @@ const i18n = {
     sortClickTip:'点击排序', resetOrderTip:'点击恢复输入顺序',
     today:'今天', daysAgo:n=>`${n}天前`,
     addrTypeLabel:'地址类型', addrTypeAcct:'账户地址', addrTypePoly:'Polymarket 地址',
-    addrTypeAcctTip:'你自己的钱包地址，将自动查找关联的 Polymarket 账户',
-    addrTypePolyTip:'Polymarket 里的地址，直接查询无需 Safe 步骤',
+    addrTypeAcctHint:'输入你的钱包地址（如 MetaMask），工具会自动匹配对应的 Polymarket 账户后再查询数据。',
+    addrTypePolyHint:'输入直接从 Polymarket 用户页面复制的地址，跳过账户匹配，查询更快。',
     noSafeErr:'未找到关联账户', apiFailErr:'接口请求失败', timeoutErr:'请求超时',
     summaryText:(total,rows,fail,stopped)=>{
       const ok=rows-fail;
@@ -450,8 +452,8 @@ const i18n = {
     sortClickTip:'Click to sort', resetOrderTip:'Click to restore input order',
     today:'Today', daysAgo:n=>`${n}d ago`,
     addrTypeLabel:'Address Type', addrTypeAcct:'Account Address', addrTypePoly:'Polymarket Address',
-    addrTypeAcctTip:'Your own wallet address. The tool will look up the associated Polymarket account automatically.',
-    addrTypePolyTip:'The address used inside Polymarket. Queried directly without a Safe lookup.',
+    addrTypeAcctHint:'Enter your wallet address (e.g. MetaMask). The tool will automatically find the linked Polymarket account before querying.',
+    addrTypePolyHint:'Enter the address copied directly from a Polymarket profile page. Skips account matching for faster results.',
     noSafeErr:'No account found', apiFailErr:'API request failed', timeoutErr:'Request timed out',
     summaryText:(total,rows,fail,stopped)=>{
       const ok=rows-fail;
@@ -679,6 +681,15 @@ function getAddrMode() {
   return el ? el.value : 'account';
 }
 
+function updateAddrTypeHint() {
+  const key = getAddrMode() === 'polymarket' ? 'addrTypePolyHint' : 'addrTypeAcctHint';
+  $('#addrTypeHint').textContent = L(key);
+}
+
+document.querySelectorAll('input[name="addrType"]').forEach(r =>
+  r.addEventListener('change', updateAddrTypeHint)
+);
+
 async function queryOne(owner) {
   if (queryCache.has(owner)) {
     const { data, ts } = queryCache.get(owner);
@@ -807,8 +818,7 @@ function applyLang() {
   $('#addrTypeLabel').textContent = L('addrTypeLabel');
   $('#addrTypeAcct').textContent = L('addrTypeAcct');
   $('#addrTypePoly').textContent = L('addrTypePoly');
-  document.querySelector('label:has(#addrTypeAcct)').title = L('addrTypeAcctTip');
-  document.querySelector('label:has(#addrTypePoly)').title = L('addrTypePolyTip');
+  updateAddrTypeHint();
 
   // table headers + tooltips
   const cols = L('thCols');
