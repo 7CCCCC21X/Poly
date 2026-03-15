@@ -604,7 +604,10 @@ const api = {
       const days = new Set(), months = new Set();
       let offset = 0, latestTs = null;
       while (true) {
-        const d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=${PAGE}&offset=${offset}`);
+        let d;
+        try {
+          d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=${PAGE}&offset=${offset}`);
+        } catch (_) { break; }
         if (!Array.isArray(d) || !d.length) break;
         for (const item of d) {
           const date = new Date(item.timestamp * 1000);
