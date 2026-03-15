@@ -600,13 +600,15 @@ const api = {
     .then(d => d[0]?.value ?? '-'),
   activity: async a => {
     try {
+      const PAGE = 500;
       const days = new Set(), months = new Set();
-      let latestTs = null;
-      let d;
-      try {
-        d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=3000&offset=0`);
-      } catch (_) { d = []; }
-      if (Array.isArray(d)) {
+      let offset = 0, latestTs = null;
+      while (true) {
+        let d;
+        try {
+          d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=${PAGE}&offset=${offset}`);
+        } catch (_) { break; }
+        if (!Array.isArray(d) || !d.length) break;
         for (const item of d) {
           const date = new Date(item.timestamp * 1000);
           const y = date.getFullYear(), mo = date.getMonth() + 1, day = date.getDate();
@@ -614,6 +616,8 @@ const api = {
           months.add(y * 100 + mo);
           if (latestTs === null || item.timestamp > latestTs) latestTs = item.timestamp;
         }
+        if (d.length < PAGE) break;
+        offset += PAGE;
       }
       if (latestTs === null) return { d: 0, m: 0, lastGap: undefined, thisMonth: false };
       const latest = new Date(latestTs * 1000);
