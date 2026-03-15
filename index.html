@@ -600,7 +600,7 @@ const api = {
     .then(d => d[0]?.value ?? '-'),
   activity: async a => {
     try {
-      const PAGE = 500;
+      const PAGE = 1000;
       const days = new Set(), months = new Set();
       let offset = 0, latestTs = null;
       while (true) {
