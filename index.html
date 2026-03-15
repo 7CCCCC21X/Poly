@@ -213,6 +213,14 @@ tfoot{display:none}
 /* ── 图标按钮（刷新） ── */
 .btn-icon{padding:4px 9px;font-size:15px;background:transparent;color:var(--c-sub);border:1px solid var(--c-border);border-radius:6px}
 .btn-icon:hover:not(:disabled){color:var(--c-primary);background:var(--c-hover);box-shadow:none;transform:none}
+
+/* ── 地址类型切换 ── */
+.addr-type-wrap{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.addr-type-label{font-size:13px;font-weight:600;color:var(--c-sub);white-space:nowrap}
+.addr-type-toggle{display:flex;background:var(--c-border);border-radius:8px;padding:3px;gap:3px}
+.addr-type-toggle label{display:flex;align-items:center;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;color:var(--c-sub);transition:all .2s;user-select:none;white-space:nowrap}
+.addr-type-toggle label:has(input:checked){background:var(--c-card);color:var(--c-primary);box-shadow:var(--shadow)}
+.addr-type-toggle input[type=radio]{display:none}
 </style>
 </head>
 
@@ -265,6 +273,14 @@ tfoot{display:none}
       <div class="history-list" id="historyList"></div>
       <div class="center" style="margin-top:6px"><button class="btn-sm btn-outline" id="clearHistory"></button></div>
     </details>
+  </div>
+
+  <div class="addr-type-wrap">
+    <span class="addr-type-label" id="addrTypeLabel"></span>
+    <div class="addr-type-toggle">
+      <label><input type="radio" name="addrType" value="account" checked><span id="addrTypeAcct"></span></label>
+      <label><input type="radio" name="addrType" value="polymarket"><span id="addrTypePoly"></span></label>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -379,6 +395,9 @@ const i18n = {
     orderRestored:'已恢复输入顺序',
     sortClickTip:'点击排序', resetOrderTip:'点击恢复输入顺序',
     today:'今天', daysAgo:n=>`${n}天前`,
+    addrTypeLabel:'地址类型', addrTypeAcct:'账户地址', addrTypePoly:'Polymarket 地址',
+    addrTypeAcctTip:'你自己的钱包地址，将自动查找关联的 Polymarket 账户',
+    addrTypePolyTip:'Polymarket 里的地址，直接查询无需 Safe 步骤',
     noSafeErr:'未找到关联账户', apiFailErr:'接口请求失败', timeoutErr:'请求超时',
     summaryText:(total,rows,fail,stopped)=>{
       const ok=rows-fail;
@@ -430,6 +449,9 @@ const i18n = {
     orderRestored:'Input order restored',
     sortClickTip:'Click to sort', resetOrderTip:'Click to restore input order',
     today:'Today', daysAgo:n=>`${n}d ago`,
+    addrTypeLabel:'Address Type', addrTypeAcct:'Account Address', addrTypePoly:'Polymarket Address',
+    addrTypeAcctTip:'Your own wallet address. The tool will look up the associated Polymarket account automatically.',
+    addrTypePolyTip:'The address used inside Polymarket. Queried directly without a Safe lookup.',
     noSafeErr:'No account found', apiFailErr:'API request failed', timeoutErr:'Request timed out',
     summaryText:(total,rows,fail,stopped)=>{
       const ok=rows-fail;
@@ -652,6 +674,11 @@ function errBadgeCls(code) {
   return 'err-api-fail';
 }
 
+function getAddrMode() {
+  const el = document.querySelector('input[name="addrType"]:checked');
+  return el ? el.value : 'account';
+}
+
 async function queryOne(owner) {
   if (queryCache.has(owner)) {
     const { data, ts } = queryCache.get(owner);
@@ -659,6 +686,25 @@ async function queryOne(owner) {
     queryCache.delete(owner);
   }
 
+  // Polymarket 地址模式：直接查询，跳过 Safe 步骤
+  if (getAddrMode() === 'polymarket') {
+    try {
+      const [vol, cnt, pro, hold, act, avail] = await Promise.all([
+        api.volume(owner), api.traded(owner), api.profit(owner),
+        api.value(owner),  api.activity(owner), api.usdc(owner)
+      ]);
+      const result = [{ disp: owner, safe: owner, vol, cnt, pro, avail, hold, act }];
+      queryCache.set(owner, { data: result, ts: Date.now() });
+      return result;
+    } catch (e) {
+      const isTimeout = e?.name === 'AbortError' || (e?.message || '').toLowerCase().includes('timeout');
+      const result = [{ disp: owner, err: isTimeout ? ERR_TIMEOUT : ERR_API_FAIL }];
+      queryCache.set(owner, { data: result, ts: Date.now() });
+      return result;
+    }
+  }
+
+  // 账户地址模式：先查询关联的 Safe 账户
   let safes = [];
   try {
     const url = `https://safe-client.safe.global/v1/chains/137/owners/${owner}/safes`;
@@ -758,6 +804,11 @@ function applyLang() {
   $('#filterInput').placeholder = L('searchPlaceholder');
   $('#offlineBanner').textContent = L('offlineMsg');
   $('#tgText').textContent = L('tgGroup');
+  $('#addrTypeLabel').textContent = L('addrTypeLabel');
+  $('#addrTypeAcct').textContent = L('addrTypeAcct');
+  $('#addrTypePoly').textContent = L('addrTypePoly');
+  document.querySelector('label:has(#addrTypeAcct)').title = L('addrTypeAcctTip');
+  document.querySelector('label:has(#addrTypePoly)').title = L('addrTypePolyTip');
 
   // table headers + tooltips
   const cols = L('thCols');
