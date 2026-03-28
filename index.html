@@ -90,7 +90,8 @@ progress::-webkit-progress-bar{background:var(--c-border);border-radius:3px}
 .col-toggle{position:relative;display:inline-block}
 .col-menu{display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--c-card);border:1px solid var(--c-border);border-radius:8px;padding:10px 12px;min-width:170px;z-index:10;box-shadow:var(--shadow-lg)}
 .col-menu.show{display:block}
-.col-menu label{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:13px;cursor:pointer;white-space:nowrap;color:var(--c-text)}
+.col-menu label{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;cursor:pointer;white-space:nowrap;color:var(--c-text)}
+.col-menu label input[type="checkbox"]{width:16px;height:16px;margin:0;flex-shrink:0}
 .col-menu label:hover{color:var(--c-primary)}
 
 /* 查询历史 */
@@ -1027,7 +1028,9 @@ function buildColMenu() {
       applyColVisibility();
     });
     label.appendChild(cb);
-    label.appendChild(document.createTextNode(' ' + name));
+    const span = document.createElement('span');
+    span.textContent = name;
+    label.appendChild(span);
     menu.appendChild(label);
   });
 }
