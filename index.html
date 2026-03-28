@@ -5,11 +5,6 @@
 <title>Polymarket 数据批量查询</title>
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
 <!-- Vercel Web Analytics -->
-<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=_vvrRDVnu6eCRgq_fUfCMtDuirQji1_V_zw6Pu3H7MlyRde4V2WC9V_TMSsUBOORUQIX-4dPaQYqxF2pqh_o6m0s8_uiaSBv6mwRhWoNvWdACa2J2Sslvssg77JEppxeShSUbeJTjHYa-HVVlXiv5Pg5At0_AOTx0mZZb43UZRwsxRbTRITnv-FC3a0EscAxNIRltxUuXL7hugbWBix7UCIRlBfQAAOj0ADiVlhiWolX0MM37f5mrUjZF6fVCnDhjtpq5nWcReKqHXZ2Y-9mcQ" charset="UTF-8"></script><script>
-  window.va = window.va || function () {
-    (window.vaq = window.vaq || []).push(arguments);
-  };
-</script>
 <script defer src="/_vercel/insights/script.js"></script>
 <style>
 :root{
@@ -243,6 +238,7 @@ tfoot{display:none}
 
 <body>
 <div id="offlineBanner" class="offline-banner"></div>
+<div id="pageLoading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--c-bg);z-index:9999;font-size:16px;color:var(--c-sub);">加载中…</div>
 
 <div class="page-header">
   <h1><span>Polymarket</span> <span id="pageTitle"></span></h1>
@@ -492,7 +488,7 @@ function L(k,...a){ const v=i18n[curLang][k]; return typeof v==='function'?v(...
 function fmtLast(act){ if(!act||act.lastGap===undefined) return '-'; return act.lastGap?L('daysAgo',act.lastGap):L('today'); }
 
 /* ========== 常量 ========== */
-const FETCH_TIMEOUT   = 5000;
+const FETCH_TIMEOUT   = 10000;
 const RPC_TIMEOUT     = 3500;
 const RETRY_BASE_MS   = 800;
 const MAX_SAFES       = 5;
@@ -1456,6 +1452,7 @@ $('#json').addEventListener('click', () => {
 
 /* ========== 初始化语言 ========== */
 applyLang();
+$('#pageLoading').style.display = 'none';
 </script>
 </body>
 </html>
