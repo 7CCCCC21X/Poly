@@ -127,8 +127,10 @@ tbody tr:hover{background:var(--c-hover)}
 th:nth-child(1),td:nth-child(1){width:44px;min-width:44px}
 thead th:nth-child(1){position:sticky;left:0;background:var(--c-primary);z-index:3}
 thead th:nth-child(2){position:sticky;left:44px;background:var(--c-primary);z-index:3}
-tbody td:nth-child(1){position:sticky;left:0;background:inherit;z-index:1}
-tbody td:nth-child(2){position:sticky;left:44px;background:inherit;z-index:1}
+tbody td:nth-child(1){position:sticky;left:0;background:var(--c-card);z-index:1}
+tbody td:nth-child(2){position:sticky;left:44px;background:var(--c-card);z-index:1}
+tbody tr:nth-child(even) td:nth-child(1),tbody tr:nth-child(even) td:nth-child(2){background:var(--c-even)}
+tbody tr:hover td:nth-child(1),tbody tr:hover td:nth-child(2){background:var(--c-hover)}
 
 /* 汇总行 */
 tfoot{display:none}
@@ -153,7 +155,8 @@ tfoot{display:none}
 /* 复制按钮 & Toast */
 .btn-copy{margin-left:6px;padding:1px 6px;font-size:11px;font-weight:500;color:var(--c-sub);background:transparent;border:1px solid var(--c-border);border-radius:4px;cursor:pointer;transition:all .15s;vertical-align:middle;letter-spacing:.2px}
 .btn-copy:hover{color:var(--c-primary);border-color:var(--c-primary);background:var(--c-hover);box-shadow:none;transform:none}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--c-tooltip);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--c-tooltip);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.15);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
 
 /* 备注输入框 */
 .note-input{width:80px;padding:4px 8px;border:1px solid transparent;border-radius:6px;font-size:12px;background:transparent;color:var(--c-text);text-align:center;transition:all .2s}
@@ -166,15 +169,17 @@ tfoot{display:none}
 .footer a:hover{text-decoration:underline}
 
 /* 作者标签 */
-.author-badge{display:inline-flex;align-items:center;gap:6px;background:var(--c-card);border:1px solid var(--c-border);border-radius:20px;padding:5px 16px 5px 12px;font-size:13px;font-weight:500;color:var(--c-text);text-decoration:none;margin-left:12px;vertical-align:middle;transition:all .2s}
-.author-badge:hover{background:var(--c-hover);box-shadow:var(--shadow);border-color:var(--c-primary-light)}
-.author-badge svg{width:15px;height:15px;fill:currentColor}
-.tg-badge{display:inline-flex;align-items:center;gap:6px;background:var(--c-card);border:1px solid var(--c-border);border-radius:20px;padding:5px 16px 5px 12px;font-size:13px;font-weight:500;color:#229ED9;text-decoration:none;margin-left:8px;vertical-align:middle;transition:all .2s}
-.tg-badge:hover{background:var(--c-hover);box-shadow:var(--shadow);border-color:#229ED9}
-.tg-badge svg{width:15px;height:15px;fill:#229ED9}
-.official-badge{display:inline-flex;align-items:center;gap:6px;background:var(--c-card);border:1px solid var(--c-border);border-radius:20px;padding:5px 16px 5px 12px;font-size:13px;font-weight:500;color:var(--c-primary);text-decoration:none;margin-left:8px;vertical-align:middle;transition:all .2s}
-.official-badge:hover{background:var(--c-hover);box-shadow:var(--shadow);border-color:var(--c-primary-light)}
-.official-badge svg{width:15px;height:15px;fill:currentColor}
+.author-badge,.tg-badge,.official-badge{display:inline-flex;align-items:center;gap:6px;background:var(--c-card);border:1px solid var(--c-border);border-radius:20px;padding:5px 16px 5px 12px;font-size:13px;font-weight:500;text-decoration:none;margin-left:8px;vertical-align:middle;transition:all .2s}
+.author-badge,.tg-badge,.official-badge{color:var(--c-text)}
+.author-badge:hover,.tg-badge:hover,.official-badge:hover{background:var(--c-hover);box-shadow:var(--shadow)}
+.author-badge svg,.tg-badge svg,.official-badge svg{width:15px;height:15px;fill:currentColor}
+.author-badge{margin-left:12px}
+.author-badge:hover{border-color:var(--c-primary-light)}
+.tg-badge{color:#229ED9}
+.tg-badge svg{fill:#229ED9}
+.tg-badge:hover{border-color:#229ED9}
+.official-badge{color:var(--c-primary)}
+.official-badge:hover{border-color:var(--c-primary-light)}
 
 /* 移动端适配 */
 @media(max-width:640px){
@@ -524,11 +529,13 @@ const fmtDec = n => {
 
 const clip = a => a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
 
+let toastTimer = null;
 function toast(t) {
   const el = $('#toast');
   el.textContent = t;
-  el.style.opacity = 1;
-  setTimeout(() => el.style.opacity = 0, 1500);
+  clearTimeout(toastTimer);
+  el.classList.add('show');
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1500);
 }
 
 function copy(addr) {
@@ -691,7 +698,7 @@ function errBadgeCls(code) {
 }
 
 function getAddrMode() {
-  const el = document.querySelector('input[name="addrType"]:checked');
+  const el = $('input[name="addrType"]:checked');
   return el ? el.value : 'account';
 }
 
@@ -700,7 +707,7 @@ function updateAddrTypeHint() {
   $('#addrTypeHint').textContent = L(key);
 }
 
-document.querySelectorAll('input[name="addrType"]').forEach(r =>
+$$('input[name="addrType"]').forEach(r =>
   r.addEventListener('change', updateAddrTypeHint)
 );
 
@@ -1035,14 +1042,16 @@ function buildColMenu() {
   });
 }
 
+let colVisStyleEl = null;
 function applyColVisibility() {
-  const allRows = $$('#tbl tr');
-  allRows.forEach(tr => {
-    const cells = tr.children;
-    for (let i = 0; i < cells.length; i++) {
-      cells[i].style.display = hiddenCols.has(i) ? 'none' : '';
-    }
-  });
+  if (!colVisStyleEl) {
+    colVisStyleEl = document.createElement('style');
+    document.head.appendChild(colVisStyleEl);
+  }
+  const rules = [...hiddenCols].map(i =>
+    `#tbl th:nth-child(${i+1}),#tbl td:nth-child(${i+1}){display:none}`
+  ).join('');
+  colVisStyleEl.textContent = rules;
 }
 
 $('#colToggleBtn').addEventListener('click', e => {
