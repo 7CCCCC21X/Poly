@@ -163,6 +163,14 @@ tfoot{display:none}
 .footer a{color:var(--c-primary);text-decoration:none;font-weight:500}
 .footer a:hover{text-decoration:underline}
 
+/* 邀请码横幅 */
+.referral-banner{max-width:1200px;margin:0 auto 18px;padding:12px 18px;background:linear-gradient(135deg,var(--c-summary-bg),rgba(139,92,246,.08));border:1px solid var(--c-primary-light);border-radius:var(--radius);text-align:center;font-size:13px;color:var(--c-text);line-height:1.7}
+.referral-banner .ref-line1{font-size:15px}
+.referral-banner .ref-code{font-weight:700;color:#fff;font-size:18px;letter-spacing:.5px;background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:2px 10px;border-radius:5px;display:inline-block}
+.referral-banner .ref-line2{display:block;margin-top:4px;font-size:12px;color:var(--c-sub)}
+.referral-banner a{color:var(--c-primary);text-decoration:none;font-weight:600}
+.referral-banner a:hover{text-decoration:underline}
+
 /* 作者标签 */
 .author-badge,.tg-badge,.official-badge{display:inline-flex;align-items:center;gap:6px;background:var(--c-card);border:1px solid var(--c-border);border-radius:20px;padding:5px 16px 5px 12px;font-size:13px;font-weight:500;text-decoration:none;margin-left:8px;vertical-align:middle;transition:all .2s}
 .author-badge,.tg-badge,.official-badge{color:var(--c-text)}
@@ -251,6 +259,8 @@ tfoot{display:none}
   </div>
   <p class="subtitle" id="subtitleEl"></p>
 </div>
+
+<div class="referral-banner" id="referralBanner"></div>
 
 <div class="card">
   <!-- 导入区 Tab -->
@@ -426,6 +436,7 @@ const i18n = {
     offlineMsg:'网络已断开，请检查连接后重试',
     tgGroup:'加入交流群',
     officialSite:'官网入口',
+    referralNotice:'<span class="ref-line1">Polymarket邀请码：<span class="ref-code">XIAOCC</span>  <a href="https://polymarket.com/?r=XIAOCC" target="_blank" rel="noopener noreferrer">注册享手续费减免 30%</a></span><span class="ref-line2">邀请码需要手动填写，返佣手动发放，每周一次；不确定是否绑定成功，可以<a href="https://t.me/xxxXIAOC" target="_blank" rel="noopener noreferrer">私信我</a>。</span>',
   },
   en: {
     title:'Batch Query', subtitle:'Paste addresses (one per line), or drag in CSV / TXT files.',
@@ -481,6 +492,7 @@ const i18n = {
     offlineMsg:'Network disconnected. Please check your connection and retry.',
     tgGroup:'Join Group',
     officialSite:'Official Site',
+    referralNotice:'<span class="ref-line1">Polymarket Referral Code: <span class="ref-code">XIAOCC</span>  <a href="https://polymarket.com/?r=XIAOCC" target="_blank" rel="noopener noreferrer">Register for 30% fee discount</a></span><span class="ref-line2">Referral code must be entered manually. Rebates paid manually, once a week. Not sure if it\'s bound? <a href="https://t.me/xxxXIAOC" target="_blank" rel="noopener noreferrer">DM me</a>.</span>',
   }
 };
 let curLang = localStorage.getItem('pm_lang') || 'zh';
@@ -815,6 +827,7 @@ function applyLang() {
   $('#langBtn').textContent = curLang === 'zh' ? 'EN' : '中文';
   $('#pageTitle').textContent = L('title');
   $('#subtitleEl').textContent = L('subtitle');
+  $('#referralBanner').innerHTML = L('referralNotice');
   $('#input').placeholder = L('placeholder');
   $('#tabPaste').textContent = L('tabPaste');
   $('#tabUpload').textContent = L('tabUpload');
