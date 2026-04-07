@@ -163,6 +163,12 @@ tfoot{display:none}
 .footer a{color:var(--c-primary);text-decoration:none;font-weight:500}
 .footer a:hover{text-decoration:underline}
 
+/* 邀请码横幅 */
+.referral-banner{max-width:1200px;margin:0 auto 18px;padding:12px 18px;background:linear-gradient(135deg,var(--c-summary-bg),rgba(139,92,246,.08));border:1px solid var(--c-primary-light);border-radius:var(--radius);text-align:center;font-size:13px;color:var(--c-text);line-height:1.7}
+.referral-banner .ref-code{font-weight:700;color:var(--c-primary);font-size:15px;letter-spacing:.5px}
+.referral-banner a{color:var(--c-primary);text-decoration:none;font-weight:600}
+.referral-banner a:hover{text-decoration:underline}
+
 /* 作者标签 */
 .author-badge,.tg-badge,.official-badge{display:inline-flex;align-items:center;gap:6px;background:var(--c-card);border:1px solid var(--c-border);border-radius:20px;padding:5px 16px 5px 12px;font-size:13px;font-weight:500;text-decoration:none;margin-left:8px;vertical-align:middle;transition:all .2s}
 .author-badge,.tg-badge,.official-badge{color:var(--c-text)}
@@ -251,6 +257,8 @@ tfoot{display:none}
   </div>
   <p class="subtitle" id="subtitleEl"></p>
 </div>
+
+<div class="referral-banner" id="referralBanner"></div>
 
 <div class="card">
   <!-- 导入区 Tab -->
@@ -426,6 +434,7 @@ const i18n = {
     offlineMsg:'网络已断开，请检查连接后重试',
     tgGroup:'加入交流群',
     officialSite:'官网入口',
+    referralNotice:'Polymarket邀请码：<span class="ref-code">XIAOCC</span>  <a href="https://polymarket.com/?r=XIAOCC" target="_blank" rel="noopener noreferrer">注册享手续费减免 30%</a>，返佣手动发放，每周一次；如有遗漏，请私信我。',
   },
   en: {
     title:'Batch Query', subtitle:'Paste addresses (one per line), or drag in CSV / TXT files.',
@@ -481,6 +490,7 @@ const i18n = {
     offlineMsg:'Network disconnected. Please check your connection and retry.',
     tgGroup:'Join Group',
     officialSite:'Official Site',
+    referralNotice:'Polymarket Referral Code: <span class="ref-code">XIAOCC</span>  <a href="https://polymarket.com/?r=XIAOCC" target="_blank" rel="noopener noreferrer">Register for 30% fee discount</a>. Rebates paid manually, once a week. If missed, please DM me.',
   }
 };
 let curLang = localStorage.getItem('pm_lang') || 'zh';
@@ -815,6 +825,7 @@ function applyLang() {
   $('#langBtn').textContent = curLang === 'zh' ? 'EN' : '中文';
   $('#pageTitle').textContent = L('title');
   $('#subtitleEl').textContent = L('subtitle');
+  $('#referralBanner').innerHTML = L('referralNotice');
   $('#input').placeholder = L('placeholder');
   $('#tabPaste').textContent = L('tabPaste');
   $('#tabUpload').textContent = L('tabUpload');
