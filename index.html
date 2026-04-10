@@ -224,6 +224,7 @@ tfoot{display:none}
 .err-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
 .row-placeholder{opacity:.45}
 .row-placeholder td:last-child,.row-placeholder td:nth-child(3){color:var(--c-sub);letter-spacing:3px}
+.owner-hint{display:block;margin-top:3px;font-size:10px;color:var(--c-sub);opacity:.75;letter-spacing:.2px;font-weight:400;text-align:left}
 .err-no-safe{background:rgba(100,116,139,.1);color:var(--c-sub)}
 .err-api-fail{background:rgba(239,68,68,.1);color:var(--c-red)}
 .err-timeout{background:rgba(245,158,11,.1);color:#d97706}
@@ -424,11 +425,13 @@ const i18n = {
     addrTypeAcctHint:'输入你的钱包地址（如 MetaMask），工具会自动匹配对应的 Polymarket 账户后再查询数据。',
     addrTypePolyHint:'输入直接从 Polymarket 用户页面复制的地址，跳过账户匹配，查询更快。',
     noSafeErr:'未找到关联账户', apiFailErr:'接口请求失败', timeoutErr:'请求超时',
-    summaryText:(total,rows,fail,stopped)=>{
-      const ok=rows-fail;
-      let s=`已查询 ${total} 个地址，成功 ${ok} 个`;
-      if(fail) s+=`，${fail} 个失败或无数据`;
-      if(stopped) s+='（已中断）'; return s;
+    summaryText:(inputs,rows,ok,fail,stopped)=>{
+      let s = inputs === rows
+        ? `已查询 ${inputs} 个地址，成功 ${ok} 条`
+        : `已查询 ${inputs} 个地址（展开 ${rows} 条），成功 ${ok} 条`;
+      if(fail) s+=`，${fail} 条失败或无数据`;
+      if(stopped) s+='（已中断）';
+      return s;
     },
     footSummary:'汇总', footRows:n=>`${n} 行`,
     historyEntry:n=>`${n} 个地址`, historyDel:'删',
@@ -480,11 +483,13 @@ const i18n = {
     addrTypeAcctHint:'Enter your wallet address (e.g. MetaMask). The tool will automatically find the linked Polymarket account before querying.',
     addrTypePolyHint:'Enter the address copied directly from a Polymarket profile page. Skips account matching for faster results.',
     noSafeErr:'No account found', apiFailErr:'API request failed', timeoutErr:'Request timed out',
-    summaryText:(total,rows,fail,stopped)=>{
-      const ok=rows-fail;
-      let s=`Queried ${total} address(es) — ${ok} succeeded`;
+    summaryText:(inputs,rows,ok,fail,stopped)=>{
+      let s = inputs === rows
+        ? `Queried ${inputs} address(es) — ${ok} succeeded`
+        : `Queried ${inputs} address(es) (${rows} rows) — ${ok} succeeded`;
       if(fail) s+=`, ${fail} failed or no data`;
-      if(stopped) s+=' (interrupted)'; return s;
+      if(stopped) s+=' (interrupted)';
+      return s;
     },
     footSummary:'Total', footRows:n=>`${n} rows`,
     historyEntry:n=>`${n} address(es)`, historyDel:'Del',
@@ -794,7 +799,19 @@ async function runPool(tasks, concurrency, onDone) {
   await Promise.all(workers);
 }
 
-let resultRows = [];
+/* Build a row meta from a queryOne result.
+   owner = user-supplied input address; addr = queried identity (safe, or owner in polymarket mode).
+   _origIdx preserves input order for deterministic sort/export. */
+function metaFromRow(row, origIdx) {
+  const base = { _origIdx: origIdx, owner: row.disp, addr: row.safe || row.disp };
+  if (row.err) return { ...base, err: row.err };
+  return {
+    ...base,
+    vol: row.vol, cnt: row.cnt, pro: row.pro,
+    avail: row.avail, hold: row.hold, act: row.act,
+  };
+}
+
 let resultMeta = [];
 /* store last query stats for summary re-rendering */
 let lastQueryStats = null;
@@ -880,14 +897,9 @@ function applyLang() {
   buildColMenu();
   renderHistory();
 
-  // re-render summary text if we have query stats
-  if (lastQueryStats) {
-    const s = lastQueryStats;
-    $('#summary').textContent = L('summaryText', s.total, s.rows, s.fail, s.stopped);
-  }
-
-  // re-render table data if present (fixes lastActive, error msgs, buttons)
+  // re-render table + summary if data is present (fixes lastActive, error msgs, buttons)
   if (resultMeta.length) renderAll();
+  else renderSummary();
 }
 
 $('#langBtn').addEventListener('click', () => {
@@ -1146,21 +1158,60 @@ function getSortedMeta() {
   });
 }
 
+/* Single source of truth for a displayed/exported row.
+   All of: table render, CSV export, JSON export derive from this. */
+function buildRowData(m, displayIdx) {
+  if (m.err) {
+    return {
+      idx: displayIdx,
+      addr: m.addr,
+      owner: m.owner,
+      total: '-',
+      pro: errMsg(m.err),
+      proCls: '',
+      avail: '-', hold: '-',
+      vol: '-', cnt: '-',
+      last: '-', days: '-', months: '-',
+      note: getNote(m.addr),
+      isErr: true, errCode: m.err,
+    };
+  }
+  const p = toNum(m.pro);
+  const sign = p < 0 ? '▼' : '▲';
+  const total = toNum(m.avail) + toNum(m.hold);
+  return {
+    idx: displayIdx,
+    addr: m.addr,
+    owner: m.owner,
+    total: fmtDec(total),
+    pro: `${sign} ${fmtInt(Math.abs(p))}`,
+    proCls: p < 0 ? 'negative' : 'positive',
+    avail: fmtDec(m.avail),
+    hold: fmtDec(m.hold),
+    vol: fmtInt(m.vol),
+    cnt: m.cnt ?? '-',
+    last: fmtLast(m.act),
+    days: m.act?.d ?? '-',
+    months: m.act?.m ?? '-',
+    note: getNote(m.addr),
+    isErr: false,
+  };
+}
+
 function renderAll() {
-  if (!resultMeta.length) return;
   const data = getSortedMeta();
   const tbody = $('#tbl tbody');
   tbody.innerHTML = '';
-  resultRows = [];
   data.forEach((m, i) => {
     m.idx = i + 1;
     if (m.err) {
-      appendErrDirect(m.err, m.addr, i + 1);
+      appendErrDirect(m, i + 1);
     } else {
       renderRowDirect(m, i + 1);
     }
   });
   updateSummaryStats();
+  renderSummary();
   applyColVisibility();
   applyFilter();
 }
@@ -1169,34 +1220,41 @@ function sortAndRender() {
   renderAll();
 }
 
+function addrCellHTML(m) {
+  const ownerHint = (m.owner && m.owner !== m.addr)
+    ? `<div class="owner-hint" title="owner: ${m.owner}">↑ ${clip(m.owner)}</div>` : '';
+  return `${clip(m.addr)}<button class="btn-copy" data-addr aria-label="${L('copied')}">[${L('copyBtn')}]</button>${ownerHint}`;
+}
+
+function rowDatasetAddr(m) {
+  return `${m.addr.toLowerCase()} ${(m.owner || '').toLowerCase()}`.trim();
+}
+
 function renderRowDirect(m, idx, insertBefore = null) {
   const tbody = $('#tbl tbody');
-  const p = toNum(m.pro);
-  const sign = p < 0 ? '▼' : '▲';
-  const cls = p < 0 ? 'negative' : 'positive';
-  const total = (toNum(m.avail) + toNum(m.hold)).toFixed(2);
+  const d = buildRowData(m, idx);
   const lastCls = m.act?.thisMonth ? '' : 'inactive';
 
   const tr = document.createElement('tr');
   tr.dataset.rowIdx = String(idx - 1);
-  tr.dataset.fullAddr = m.addr.toLowerCase();
+  tr.dataset.fullAddr = rowDatasetAddr(m);
 
   tr.innerHTML = `
     <td>${idx}</td>
-    <td>${clip(m.addr)}<button class="btn-copy" data-addr aria-label="${L('copied')}">[${L('copyBtn')}]</button></td>
-    <td>${fmtDec(total)}</td>
-    <td class="${cls}">${sign} ${fmtInt(Math.abs(p))}</td>
-    <td>${fmtDec(m.avail)}</td>
-    <td>${fmtDec(m.hold)}</td>
-    <td>${fmtInt(m.vol)}</td>
-    <td>${m.cnt}</td>
-    <td class="${lastCls}">${fmtLast(m.act)}</td>
-    <td>${m.act?.d ?? '-'}</td>
-    <td>${m.act?.m ?? '-'}</td>
+    <td>${addrCellHTML(m)}</td>
+    <td>${d.total}</td>
+    <td class="${d.proCls}">${d.pro}</td>
+    <td>${d.avail}</td>
+    <td>${d.hold}</td>
+    <td>${d.vol}</td>
+    <td>${d.cnt}</td>
+    <td class="${lastCls}">${d.last}</td>
+    <td>${d.days}</td>
+    <td>${d.months}</td>
     <td><input class="note-input" data-note placeholder="✎ ${L('addNote')}"></td>
-    <td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}">↻</button></td>`;
+    <td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}" aria-label="${L('refresh')}">↻</button></td>`;
 
-  tr.querySelector('[data-note]').value = getNote(m.addr) || '';
+  tr.querySelector('[data-note]').value = d.note;
   tr.querySelector('[data-addr]').addEventListener('click', () => copy(m.addr));
   tr.querySelector('[data-refresh]').addEventListener('click', () => refreshRow(m));
   tr.querySelector('[data-note]').addEventListener('change', function() {
@@ -1205,44 +1263,38 @@ function renderRowDirect(m, idx, insertBefore = null) {
 
   if (insertBefore) tbody.insertBefore(tr, insertBefore);
   else tbody.appendChild(tr);
-
-  resultRows.push([
-    idx, m.addr, fmtDec(total), `${sign} ${fmtInt(Math.abs(p))}`,
-    fmtDec(m.avail), fmtDec(m.hold), fmtInt(m.vol), m.cnt,
-    fmtLast(m.act), m.act?.d ?? 0, m.act?.m ?? 0, getNote(m.addr)
-  ]);
 }
 
-function appendErrDirect(code, addr, idx, insertBefore = null) {
+function appendErrDirect(m, idx, insertBefore = null) {
   const tbody = $('#tbl tbody');
   const tr = document.createElement('tr');
-  tr.dataset.fullAddr = addr.toLowerCase();
-  tr.innerHTML = `<td>${idx}</td><td>${clip(addr)}<button class="btn-copy" data-addr aria-label="${L('copied')}">[${L('copyBtn')}]</button></td><td colspan="10"><span class="err-badge ${errBadgeCls(code)}">${errIcon(code)} ${errMsg(code)}</span></td><td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}">↻</button></td>`;
-  tr.querySelector('[data-addr]').addEventListener('click', () => copy(addr));
-  tr.querySelector('[data-refresh]').addEventListener('click', () => refreshErrRow(tr, addr, idx));
+  tr.dataset.fullAddr = rowDatasetAddr(m);
+  tr.innerHTML = `<td>${idx}</td><td>${addrCellHTML(m)}</td><td colspan="10"><span class="err-badge ${errBadgeCls(m.err)}">${errIcon(m.err)} ${errMsg(m.err)}</span></td><td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}" aria-label="${L('refresh')}">↻</button></td>`;
+  tr.querySelector('[data-addr]').addEventListener('click', () => copy(m.addr));
+  tr.querySelector('[data-refresh]').addEventListener('click', () => refreshErrRow(tr, m));
   if (insertBefore) tbody.insertBefore(tr, insertBefore);
   else tbody.appendChild(tr);
-  resultRows.push([idx, addr, errMsg(code)]);
 }
 
-async function refreshErrRow(tr, addr, idx) {
-  queryCache.delete(addr);
+async function refreshErrRow(tr, errMeta) {
+  const owner = errMeta.owner;
+  queryCache.delete(owner);
   const btn = tr.querySelector('[data-refresh]');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const rows = await queryOne(addr);
-    const tbody = $('#tbl tbody');
-    for (const row of rows) {
-      const meta = { _origIdx: idx, idx, addr: row.disp, safe: row.safe, vol: row.vol, cnt: row.cnt, pro: row.pro, avail: row.avail, hold: row.hold, act: row.act };
-      if (row.err) {
-        appendErrDirect(row.err, row.disp, idx, tr);
-      } else {
-        resultMeta.push(meta);
-        renderRowDirect(meta, idx, tr);
-      }
-    }
-    tr.remove();
-    applyColVisibility();
+    const rows = await queryOne(owner);
+
+    // Locate and remove the stale error meta so we don't duplicate it.
+    const oldPos = resultMeta.indexOf(errMeta);
+    const baseOrigIdx = oldPos >= 0 ? resultMeta[oldPos]._origIdx : resultMeta.length;
+    if (oldPos >= 0) resultMeta.splice(oldPos, 1);
+
+    // Append new metas with preserved ordering (fractional offsets keep them adjacent).
+    rows.forEach((row, i) => {
+      resultMeta.push(metaFromRow(row, baseOrigIdx + i * 0.0001));
+    });
+
+    renderAll();
     toast(L('refreshOk'));
   } catch {
     if (btn) { btn.disabled = false; btn.textContent = '↻'; }
@@ -1251,13 +1303,17 @@ async function refreshErrRow(tr, addr, idx) {
 }
 
 async function refreshRow(meta) {
-  queryCache.delete(meta.addr);
+  queryCache.delete(meta.owner);
   toast(L('refreshing'));
   try {
-    const rows = await queryOne(meta.addr);
-    const match = rows.find(r => r.safe === meta.safe);
-    if (match && !match.err) {
-      Object.assign(meta, { vol: match.vol, cnt: match.cnt, pro: match.pro, avail: match.avail, hold: match.hold, act: match.act });
+    const rows = await queryOne(meta.owner);
+    const match = rows.find(r => !r.err && (r.safe || r.disp) === meta.addr);
+    if (match) {
+      Object.assign(meta, {
+        vol: match.vol, cnt: match.cnt, pro: match.pro,
+        avail: match.avail, hold: match.hold, act: match.act,
+      });
+      delete meta.err;
       renderAll();
       toast(L('refreshOk'));
     } else {
@@ -1266,6 +1322,21 @@ async function refreshRow(meta) {
   } catch {
     toast(L('refreshFail'));
   }
+}
+
+/* Summary line text. Recomputed from current resultMeta so it stays
+   accurate after refresh actions add/remove rows. */
+function renderSummary() {
+  const summaryEl = $('#summary');
+  if (!lastQueryStats) {
+    summaryEl.style.display = 'none';
+    return;
+  }
+  const rows = resultMeta.length;
+  const fail = resultMeta.filter(m => m.err).length;
+  const ok = rows - fail;
+  summaryEl.textContent = L('summaryText', lastQueryStats.total, rows, ok, fail, lastQueryStats.stopped);
+  summaryEl.style.display = 'block';
 }
 
 function updateSummaryStats() {
@@ -1334,11 +1405,11 @@ $('#run').addEventListener('click', async () => {
 
   const tbody = $('#tbl tbody');
   tbody.innerHTML = '';
-  resultRows = [];
   resultMeta = [];
   lastQueryStats = null;
   abortFlag = false;
-  queryCache.clear();
+  // Note: we intentionally do NOT call queryCache.clear() — the 5min TTL handles
+  // staleness, and re-running the same list should reuse warm entries.
   runController = new AbortController();
 
   $('#summary').style.display = 'none';
@@ -1354,7 +1425,7 @@ $('#run').addEventListener('click', async () => {
   $('#stop').textContent = L('stop');
   $('#tfoot').style.display = 'none';
 
-  let completed = 0, fail = 0, idx = 1;
+  let completed = 0;
 
   // Pre-create placeholder rows in input order so results appear in that order
   const placeholders = list.map((addr, i) => {
@@ -1371,21 +1442,17 @@ $('#run').addEventListener('click', async () => {
   await runPool(tasks, CONCURRENCY, (rows, taskIdx) => {
     completed++;
     const placeholder = placeholders[taskIdx];
-    let safeOrder = 0;
-    for (const row of rows) {
-      if (row.err) {
-        const meta = { _origIdx: taskIdx * 1000 + safeOrder, idx, addr: row.disp, err: row.err };
-        resultMeta.push(meta);
-        appendErrDirect(row.err, row.disp, idx, placeholder);
-        idx++; fail++;
+    rows.forEach((row, safeOrder) => {
+      const meta = metaFromRow(row, taskIdx * 1000 + safeOrder);
+      resultMeta.push(meta);
+      // Display with provisional idx; renderAll() at the end fixes numbering.
+      const provisionalIdx = resultMeta.length;
+      if (meta.err) {
+        appendErrDirect(meta, provisionalIdx, placeholder);
       } else {
-        const meta = { _origIdx: taskIdx * 1000 + safeOrder, idx, addr: row.disp, safe: row.safe, vol: row.vol, cnt: row.cnt, pro: row.pro, avail: row.avail, hold: row.hold, act: row.act };
-        resultMeta.push(meta);
-        renderRowDirect(meta, idx, placeholder);
-        idx++;
+        renderRowDirect(meta, provisionalIdx, placeholder);
       }
-      safeOrder++;
-    }
+    });
     placeholder.remove();
     $('#bar').value = (completed / list.length) * 100;
     $('#barTxt').textContent = L('progressTxt', completed, list.length);
@@ -1396,20 +1463,21 @@ $('#run').addEventListener('click', async () => {
   $('#stop').style.display = 'none';
   $('#run').disabled = $('#csv').disabled = $('#json').disabled = false;
 
-  // 按 DOM 顺序（即输入顺序）重新编号
-  let num = 1;
-  for (const tr of $$('#tbl tbody tr')) {
-    tr.cells[0].textContent = num;
-    tr.dataset.rowIdx = String(num - 1);
-    num++;
-  }
-  resultMeta.sort((a, b) => a._origIdx - b._origIdx).forEach((m, i) => { m.idx = i + 1; });
+  // Compute summary stats from resultMeta (single source of truth).
+  const failCount = resultMeta.filter(m => m.err).length;
+  const okCount = resultMeta.length - failCount;
+  lastQueryStats = {
+    total: list.length,
+    rows: resultMeta.length,
+    ok: okCount,
+    fail: failCount,
+    stopped: abortFlag,
+  };
 
-  lastQueryStats = { total: list.length, rows: idx - 1, fail, stopped: abortFlag };
-  $('#summary').textContent = L('summaryText', list.length, idx - 1, fail, abortFlag);
-  $('#summary').style.display = 'block';
-
-  updateSummaryStats();
+  // Sort + redraw cleanly so DOM order matches input order and all idx
+  // numbers, summary, footer, and stat cards are derived from one state pass.
+  resultMeta.sort((a, b) => a._origIdx - b._origIdx);
+  renderAll();
 });
 
 $('#stop').addEventListener('click', () => {
@@ -1420,28 +1488,40 @@ $('#stop').addEventListener('click', () => {
   toast(L('cancelRequests'));
 });
 
-$('#csv').addEventListener('click', () => {
-  if (!resultRows.length) return toast(L('noData'));
-  const escapeCsv = v => {
-    const s = String(v);
-    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [L('csvHeaders').map(escapeCsv).join(',')];
-  for (const row of resultRows) lines.push(row.map(escapeCsv).join(','));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv' });
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `polymarket_${Date.now()}.csv`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/* Always export in input order. Both success and error rows have the same
+   column count so columns line up regardless of row outcome. */
+$('#csv').addEventListener('click', () => {
+  if (!resultMeta.length) return toast(L('noData'));
+  const sorted = [...resultMeta].sort((a, b) => a._origIdx - b._origIdx);
+  const escapeCsv = v => {
+    const s = String(v ?? '');
+    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [L('csvHeaders').map(escapeCsv).join(',')];
+  sorted.forEach((m, i) => {
+    const d = buildRowData(m, i + 1);
+    const row = [d.idx, d.addr, d.total, d.pro, d.avail, d.hold, d.vol, d.cnt, d.last, d.days, d.months, d.note];
+    lines.push(row.map(escapeCsv).join(','));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv' });
+  downloadBlob(blob, `polymarket_${Date.now()}.csv`);
 });
 
 $('#json').addEventListener('click', () => {
   if (!resultMeta.length) return toast(L('noData'));
-  const data = resultMeta.filter(m => !m.err).map(m => ({
+  const sorted = [...resultMeta].sort((a, b) => a._origIdx - b._origIdx);
+  const data = sorted.filter(m => !m.err).map(m => ({
     address: m.addr,
-    safe: m.safe,
+    owner: m.owner,
     volume: toNum(m.vol),
     pools: toNum(m.cnt),
     profit: toNum(m.pro),
@@ -1455,12 +1535,7 @@ $('#json').addEventListener('click', () => {
     note: getNote(m.addr),
   }));
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `polymarket_${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `polymarket_${Date.now()}.json`);
 });
 
 /* ========== 初始化语言 ========== */
