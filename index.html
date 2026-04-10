@@ -225,6 +225,7 @@ tfoot{display:none}
 .row-placeholder{opacity:.45}
 .row-placeholder td:last-child,.row-placeholder td:nth-child(3){color:var(--c-sub);letter-spacing:3px}
 .owner-hint{display:block;margin-top:3px;font-size:10px;color:var(--c-sub);opacity:.75;letter-spacing:.2px;font-weight:400;text-align:left}
+.partial-cell{cursor:help;border-bottom:1px dotted var(--c-sub);color:var(--c-sub)}
 .err-no-safe{background:rgba(100,116,139,.1);color:var(--c-sub)}
 .err-api-fail{background:rgba(239,68,68,.1);color:var(--c-red)}
 .err-timeout{background:rgba(245,158,11,.1);color:#d97706}
@@ -416,6 +417,7 @@ const i18n = {
     importNoAddr:'文件中未找到有效地址', importFileType:'仅支持 CSV 或 TXT 文件',
     historyLoaded:'已加载历史记录', historyCleared:'历史已清空',
     refreshing:'正在刷新...', refreshOk:'刷新完成', refreshFail:'刷新失败',
+    partialTip:'仅加载了最近 1000 条活动记录，点击 ↻ 刷新以拉取完整历史',
     noData:'暂无数据', cancelRequests:'正在取消所有进行中的请求...',
     progressTxt:(done,total)=>`${done}/${total} 地址`,
     orderRestored:'已恢复输入顺序',
@@ -474,6 +476,7 @@ const i18n = {
     importNoAddr:'No valid addresses found in file', importFileType:'Only CSV or TXT files supported',
     historyLoaded:'History loaded', historyCleared:'History cleared',
     refreshing:'Refreshing...', refreshOk:'Refresh complete', refreshFail:'Refresh failed',
+    partialTip:'Only the most recent 1000 activities were loaded. Click ↻ to fetch full history.',
     noData:'No data', cancelRequests:'Cancelling all pending requests...',
     progressTxt:(done,total)=>`${done}/${total} addr`,
     orderRestored:'Input order restored',
@@ -656,38 +659,65 @@ const api = {
   usdc: getUSDC,
   value: a => fetchJ(`https://data-api.polymarket.com/value?user=${a}`)
     .then(d => d[0]?.value ?? '-'),
-  activity: async a => {
-    try {
-      const PAGE = 1000;
-      const days = new Set(), months = new Set();
-      let offset = 0, latestTs = null;
-      while (true) {
-        let d;
-        try {
-          d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=${PAGE}&offset=${offset}`);
-        } catch (_) { break; }
-        if (!Array.isArray(d) || !d.length) break;
-        for (const item of d) {
-          const date = new Date(item.timestamp * 1000);
-          const y = date.getFullYear(), mo = date.getMonth() + 1, day = date.getDate();
-          days.add(y * 10000 + mo * 100 + day);
-          months.add(y * 100 + mo);
-          if (latestTs === null || item.timestamp > latestTs) latestTs = item.timestamp;
-        }
-        if (d.length < PAGE) break;
-        offset += PAGE;
-      }
-      if (latestTs === null) return { d: 0, m: 0, lastGap: undefined, thisMonth: false };
-      const latest = new Date(latestTs * 1000);
-      const now = new Date();
-      const thisMonth = latest.getFullYear() === now.getFullYear() && latest.getMonth() === now.getMonth();
-      const gap = Math.floor((Date.now() - latest.getTime()) / MS_PER_DAY);
-      return { d: days.size, m: months.size, lastGap: gap, thisMonth };
-    } catch (_) {
-      return { d: 0, m: 0, lastGap: undefined, thisMonth: false };
-    }
-  }
 };
+
+/* ===== Activity fetch: shallow (1 page, fast) vs full (paginated).
+   Initial queries use shallow so heavy wallets don't block the pool on
+   thousands of activity items; a row is marked partial and shows "N+" so
+   users can trigger a full refresh on demand. */
+const ACTIVITY_PAGE = 1000;
+
+async function fetchActivityPage(a, offset) {
+  try {
+    const d = await fetchJ(`https://data-api.polymarket.com/activity?user=${a}&limit=${ACTIVITY_PAGE}&offset=${offset}`);
+    return Array.isArray(d) ? d : [];
+  } catch (_) {
+    return null;
+  }
+}
+
+function addActivityItems(agg, items) {
+  for (const item of items) {
+    const date = new Date(item.timestamp * 1000);
+    const y = date.getFullYear(), mo = date.getMonth() + 1, day = date.getDate();
+    agg.days.add(y * 10000 + mo * 100 + day);
+    agg.months.add(y * 100 + mo);
+    if (agg.latestTs === null || item.timestamp > agg.latestTs) agg.latestTs = item.timestamp;
+  }
+}
+
+function activityStatsFromAgg(agg, partial) {
+  if (agg.latestTs === null) {
+    return { d: 0, m: 0, lastGap: undefined, thisMonth: false, partial };
+  }
+  const latest = new Date(agg.latestTs * 1000);
+  const now = new Date();
+  const thisMonth = latest.getFullYear() === now.getFullYear() && latest.getMonth() === now.getMonth();
+  const gap = Math.floor((Date.now() - latest.getTime()) / MS_PER_DAY);
+  return { d: agg.days.size, m: agg.months.size, lastGap: gap, thisMonth, partial };
+}
+
+async function activityShallow(a) {
+  const agg = { days: new Set(), months: new Set(), latestTs: null };
+  const items = await fetchActivityPage(a, 0);
+  if (items && items.length) addActivityItems(agg, items);
+  // Partial iff the endpoint returned a full page — there may be more history.
+  const partial = !!items && items.length >= ACTIVITY_PAGE;
+  return activityStatsFromAgg(agg, partial);
+}
+
+async function activityFull(a) {
+  const agg = { days: new Set(), months: new Set(), latestTs: null };
+  let offset = 0;
+  while (!abortFlag) {
+    const items = await fetchActivityPage(a, offset);
+    if (!items || items.length === 0) break;
+    addActivityItems(agg, items);
+    if (items.length < ACTIVITY_PAGE) break;
+    offset += ACTIVITY_PAGE;
+  }
+  return activityStatsFromAgg(agg, false);
+}
 
 /* error codes instead of localized strings */
 const ERR_NO_SAFE   = 'ERR_NO_SAFE';   // 地址未找到关联 Safe 账户
@@ -724,27 +754,57 @@ $$('input[name="addrType"]').forEach(r =>
   r.addEventListener('change', updateAddrTypeHint)
 );
 
-async function queryOne(owner) {
-  if (queryCache.has(owner)) {
-    const { data, ts } = queryCache.get(owner);
-    if (Date.now() - ts < CACHE_TTL) return data;
-    queryCache.delete(owner);
-  }
+/* Cache key prefix: "full" entries are strictly better than "shallow", so a
+   full-mode lookup will accept either; a shallow-mode lookup only accepts
+   shallow (to avoid stale full caches blocking a fresh full refresh that
+   just invalidated). In practice refreshRow deletes the owner first, so
+   both prefixes are wiped before a full refetch. */
+function cacheGet(owner, wantFull) {
+  const full = queryCache.get('full:' + owner);
+  if (full && Date.now() - full.ts < CACHE_TTL) return full.data;
+  if (full) queryCache.delete('full:' + owner);
+  if (wantFull) return null;
+  const shallow = queryCache.get('shallow:' + owner);
+  if (shallow && Date.now() - shallow.ts < CACHE_TTL) return shallow.data;
+  if (shallow) queryCache.delete('shallow:' + owner);
+  return null;
+}
+function cacheSet(owner, data, fullActivity) {
+  queryCache.set((fullActivity ? 'full:' : 'shallow:') + owner, { data, ts: Date.now() });
+}
+function cacheDelete(owner) {
+  queryCache.delete('full:' + owner);
+  queryCache.delete('shallow:' + owner);
+}
+
+async function fetchOneAddress(addr, fullActivity) {
+  const activityFn = fullActivity ? activityFull : activityShallow;
+  const [vol, cnt, pro, hold, act, avail] = await Promise.all([
+    api.volume(addr), api.traded(addr), api.profit(addr),
+    api.value(addr),  activityFn(addr),  api.usdc(addr),
+  ]);
+  return { vol, cnt, pro, avail, hold, act };
+}
+
+function classifyError(e) {
+  const isTimeout = e?.name === 'AbortError' || (e?.message || '').toLowerCase().includes('timeout');
+  return isTimeout ? ERR_TIMEOUT : ERR_API_FAIL;
+}
+
+async function queryOne(owner, { fullActivity = false } = {}) {
+  const cached = cacheGet(owner, fullActivity);
+  if (cached) return cached;
 
   // Polymarket 地址模式：直接查询，跳过 Safe 步骤
   if (getAddrMode() === 'polymarket') {
     try {
-      const [vol, cnt, pro, hold, act, avail] = await Promise.all([
-        api.volume(owner), api.traded(owner), api.profit(owner),
-        api.value(owner),  api.activity(owner), api.usdc(owner)
-      ]);
-      const result = [{ disp: owner, safe: owner, vol, cnt, pro, avail, hold, act }];
-      queryCache.set(owner, { data: result, ts: Date.now() });
+      const data = await fetchOneAddress(owner, fullActivity);
+      const result = [{ disp: owner, safe: owner, ...data }];
+      cacheSet(owner, result, fullActivity);
       return result;
     } catch (e) {
-      const isTimeout = e?.name === 'AbortError' || (e?.message || '').toLowerCase().includes('timeout');
-      const result = [{ disp: owner, err: isTimeout ? ERR_TIMEOUT : ERR_API_FAIL }];
-      queryCache.set(owner, { data: result, ts: Date.now() });
+      const result = [{ disp: owner, err: classifyError(e) }];
+      cacheSet(owner, result, fullActivity);
       return result;
     }
   }
@@ -764,7 +824,7 @@ async function queryOne(owner) {
 
   if (!safes.length) {
     const result = [{ disp: owner, err: ERR_NO_SAFE }];
-    queryCache.set(owner, { data: result, ts: Date.now() });
+    cacheSet(owner, result, fullActivity);
     return result;
   }
 
@@ -772,30 +832,36 @@ async function queryOne(owner) {
   for (const safe of safes) {
     if (abortFlag) break;
     try {
-      const [vol, cnt, pro, hold, act, avail] = await Promise.all([
-        api.volume(safe), api.traded(safe), api.profit(safe),
-        api.value(safe),  api.activity(safe), api.usdc(safe)
-      ]);
-      rows.push({ disp: owner, safe, vol, cnt, pro, avail, hold, act });
+      const data = await fetchOneAddress(safe, fullActivity);
+      rows.push({ disp: owner, safe, ...data });
     } catch (e) {
-      const isTimeout = e?.name === 'AbortError' || (e?.message || '').toLowerCase().includes('timeout');
-      rows.push({ disp: owner, err: isTimeout ? ERR_TIMEOUT : ERR_API_FAIL });
+      rows.push({ disp: owner, safe, err: classifyError(e) });
     }
   }
-  queryCache.set(owner, { data: rows, ts: Date.now() });
+  cacheSet(owner, rows, fullActivity);
   return rows;
 }
 
-async function runPool(tasks, concurrency, onDone) {
+/* Fixed-concurrency worker pool.
+   - Tasks can throw freely: the pool catches and surfaces a fallback result
+     so one broken task never kills its worker.
+   - Aborted tasks are skipped (onDone is not called after abortFlag flips). */
+async function runPool(tasks, concurrency, onDone, onError) {
   let i = 0;
   async function worker() {
     while (i < tasks.length && !abortFlag) {
       const idx = i++;
-      const result = await tasks[idx]();
-      onDone(result, idx);
+      let result;
+      try {
+        result = await tasks[idx]();
+      } catch (e) {
+        result = onError ? onError(e, idx) : null;
+      }
+      if (!abortFlag) onDone(result, idx);
     }
   }
-  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  const n = Math.min(concurrency, tasks.length);
+  const workers = Array.from({ length: n }, () => worker());
   await Promise.all(workers);
 }
 
@@ -1173,12 +1239,18 @@ function buildRowData(m, displayIdx) {
       vol: '-', cnt: '-',
       last: '-', days: '-', months: '-',
       note: getNote(m.addr),
+      partial: false,
       isErr: true, errCode: m.err,
     };
   }
   const p = toNum(m.pro);
   const sign = p < 0 ? '▼' : '▲';
   const total = toNum(m.avail) + toNum(m.hold);
+  const partial = m.act?.partial === true;
+  const daysCount = m.act?.d;
+  const monthsCount = m.act?.m;
+  const daysStr = daysCount === undefined ? '-' : (partial ? `${daysCount}+` : String(daysCount));
+  const monthsStr = monthsCount === undefined ? '-' : (partial ? `${monthsCount}+` : String(monthsCount));
   return {
     idx: displayIdx,
     addr: m.addr,
@@ -1191,9 +1263,10 @@ function buildRowData(m, displayIdx) {
     vol: fmtInt(m.vol),
     cnt: m.cnt ?? '-',
     last: fmtLast(m.act),
-    days: m.act?.d ?? '-',
-    months: m.act?.m ?? '-',
+    days: daysStr,
+    months: monthsStr,
     note: getNote(m.addr),
+    partial,
     isErr: false,
   };
 }
@@ -1234,6 +1307,9 @@ function renderRowDirect(m, idx, insertBefore = null) {
   const tbody = $('#tbl tbody');
   const d = buildRowData(m, idx);
   const lastCls = m.act?.thisMonth ? '' : 'inactive';
+  const partialTip = d.partial ? L('partialTip') : '';
+  const daysCell = d.partial ? `<span class="partial-cell" title="${partialTip}">${d.days}</span>` : d.days;
+  const monthsCell = d.partial ? `<span class="partial-cell" title="${partialTip}">${d.months}</span>` : d.months;
 
   const tr = document.createElement('tr');
   tr.dataset.rowIdx = String(idx - 1);
@@ -1249,8 +1325,8 @@ function renderRowDirect(m, idx, insertBefore = null) {
     <td>${d.vol}</td>
     <td>${d.cnt}</td>
     <td class="${lastCls}">${d.last}</td>
-    <td>${d.days}</td>
-    <td>${d.months}</td>
+    <td>${daysCell}</td>
+    <td>${monthsCell}</td>
     <td><input class="note-input" data-note placeholder="✎ ${L('addNote')}"></td>
     <td><button class="btn-sm btn-icon" data-refresh title="${L('refresh')}" aria-label="${L('refresh')}">↻</button></td>`;
 
@@ -1276,26 +1352,44 @@ function appendErrDirect(m, idx, insertBefore = null) {
   else tbody.appendChild(tr);
 }
 
+/* Apply a fresh queryOne() result to resultMeta, updating only the rows
+   affected by the refresh trigger. Two cases:
+   1. Owner-level error (NO_SAFE / polymarket error): trigger.addr === owner.
+      Replace the trigger with all fresh rows at trigger's _origIdx slot.
+   2. Per-safe update: trigger is one specific safe. Update only the matching
+      fresh row in place, leaving siblings for the same owner alone. */
+function applyOwnerRefresh(freshRows, trigger) {
+  const pos = resultMeta.indexOf(trigger);
+  if (pos < 0) return false;
+
+  if (trigger.err && trigger.addr === trigger.owner) {
+    const base = trigger._origIdx;
+    resultMeta.splice(pos, 1);
+    freshRows.forEach((row, i) => {
+      resultMeta.push(metaFromRow(row, base + i * 0.0001));
+    });
+    return true;
+  }
+
+  const match = freshRows.find(r => (r.safe || r.disp) === trigger.addr);
+  if (!match) return false;
+  resultMeta.splice(pos, 1, metaFromRow(match, trigger._origIdx));
+  return true;
+}
+
 async function refreshErrRow(tr, errMeta) {
-  const owner = errMeta.owner;
-  queryCache.delete(owner);
+  cacheDelete(errMeta.owner);
   const btn = tr.querySelector('[data-refresh]');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const rows = await queryOne(owner);
-
-    // Locate and remove the stale error meta so we don't duplicate it.
-    const oldPos = resultMeta.indexOf(errMeta);
-    const baseOrigIdx = oldPos >= 0 ? resultMeta[oldPos]._origIdx : resultMeta.length;
-    if (oldPos >= 0) resultMeta.splice(oldPos, 1);
-
-    // Append new metas with preserved ordering (fractional offsets keep them adjacent).
-    rows.forEach((row, i) => {
-      resultMeta.push(metaFromRow(row, baseOrigIdx + i * 0.0001));
-    });
-
+    const rows = await queryOne(errMeta.owner, { fullActivity: true });
+    const ok = applyOwnerRefresh(rows, errMeta);
     renderAll();
-    toast(L('refreshOk'));
+    if (ok) toast(L('refreshOk'));
+    else {
+      toast(L('refreshFail'));
+      if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+    }
   } catch {
     if (btn) { btn.disabled = false; btn.textContent = '↻'; }
     toast(L('refreshFail'));
@@ -1303,22 +1397,13 @@ async function refreshErrRow(tr, errMeta) {
 }
 
 async function refreshRow(meta) {
-  queryCache.delete(meta.owner);
+  cacheDelete(meta.owner);
   toast(L('refreshing'));
   try {
-    const rows = await queryOne(meta.owner);
-    const match = rows.find(r => !r.err && (r.safe || r.disp) === meta.addr);
-    if (match) {
-      Object.assign(meta, {
-        vol: match.vol, cnt: match.cnt, pro: match.pro,
-        avail: match.avail, hold: match.hold, act: match.act,
-      });
-      delete meta.err;
-      renderAll();
-      toast(L('refreshOk'));
-    } else {
-      toast(L('refreshFail'));
-    }
+    const rows = await queryOne(meta.owner, { fullActivity: true });
+    const ok = applyOwnerRefresh(rows, meta);
+    renderAll();
+    toast(ok ? L('refreshOk') : L('refreshFail'));
   } catch {
     toast(L('refreshFail'));
   }
@@ -1437,7 +1522,13 @@ $('#run').addEventListener('click', async () => {
     return tr;
   });
 
-  const tasks = list.map(owner => () => queryOne(owner));
+  // Shallow activity keeps the main query fast — users can trigger a full
+  // paginated fetch later via the per-row refresh button.
+  const tasks = list.map(owner => () => queryOne(owner, { fullActivity: false }));
+
+  // If a task somehow throws past queryOne's internal catch, fall back to
+  // a synthetic error row so the pool always feeds the render loop.
+  const onTaskError = (_e, taskIdx) => [{ disp: list[taskIdx], err: ERR_API_FAIL }];
 
   await runPool(tasks, CONCURRENCY, (rows, taskIdx) => {
     completed++;
@@ -1453,11 +1544,11 @@ $('#run').addEventListener('click', async () => {
         renderRowDirect(meta, provisionalIdx, placeholder);
       }
     });
-    placeholder.remove();
+    if (placeholder.parentNode) placeholder.remove();
     $('#bar').value = (completed / list.length) * 100;
     $('#barTxt').textContent = L('progressTxt', completed, list.length);
     applyColVisibility();
-  });
+  }, onTaskError);
 
   $('#loading').style.display = 'none';
   $('#stop').style.display = 'none';
@@ -1530,6 +1621,7 @@ $('#json').addEventListener('click', () => {
     total: toNum(m.avail) + toNum(m.hold),
     activeDays: m.act?.d ?? 0,
     activeMonths: m.act?.m ?? 0,
+    activityPartial: m.act?.partial === true,
     lastActive: fmtLast(m.act),
     activeThisMonth: m.act?.thisMonth ?? false,
     note: getNote(m.addr),
