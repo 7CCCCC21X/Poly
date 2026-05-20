@@ -394,11 +394,11 @@ const i18n = {
     exportCsv:'导出 CSV', exportJson:'导出 JSON',
     colToggle:'列显隐', searchPlaceholder:'搜索地址或数据...',
     addNote:'添加备注', copyBtn:'复制', refresh:'刷新此行', themeTitle:'切换暗色/亮色模式',
-    thCols:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注','操作'],
+    thCols:['#','地址','净资产','盈亏','可用(pUSD)','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注','操作'],
     thTips:{
       total:'净资产 = 可用余额 + 持仓估值（USD）',
       pro:'历史累计盈亏（USD）',
-      avail:'链上 USDC 可用余额（实时查询）',
+      avail:'链上 pUSD 可用余额（实时查询）',
       hold:'当前持仓估值（USD）',
       vol:'历史累计交易额（USD）',
       cnt:'参与的预测市场池数量',
@@ -407,7 +407,7 @@ const i18n = {
       months:'历史累计活跃月数',
     },
     statLabels:['总盈亏','可用余额','持仓估值','净资产总计'],
-    statSubs:['历史累计 · USD','','','可用 + 持仓 · USD'],
+    statSubs:['历史累计 · USD','pUSD · 链上实时','','可用 pUSD + 持仓 · USD'],
     copied:'已复制', noInput:'请输入地址',
     invalidAddr:n=>`${n} 个地址格式无效，请检查`,
     dedupMsg:n=>`已自动去除 ${n} 个重复地址`,
@@ -432,7 +432,7 @@ const i18n = {
     },
     footSummary:'汇总', footRows:n=>`${n} 行`,
     historyEntry:n=>`${n} 个地址`, historyDel:'删',
-    csvHeaders:['#','地址','净资产','盈亏','可用','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注'],
+    csvHeaders:['#','地址','净资产','盈亏','可用(pUSD)','持仓','交易额','池子数','最后活跃','活跃天数','活跃月数','备注'],
     offlineMsg:'网络已断开，请检查连接后重试',
     tgGroup:'加入交流群',
     officialSite:'官网入口',
@@ -450,11 +450,11 @@ const i18n = {
     exportCsv:'Export CSV', exportJson:'Export JSON',
     colToggle:'Columns', searchPlaceholder:'Search addresses or data...',
     addNote:'Add note', copyBtn:'Copy', refresh:'Refresh row', themeTitle:'Toggle dark/light mode',
-    thCols:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes','Actions'],
+    thCols:['#','Address','Net Assets','P&L','Available (pUSD)','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes','Actions'],
     thTips:{
       total:'Net Assets = Available + Holdings (USD)',
       pro:'All-time cumulative P&L (USD)',
-      avail:'On-chain USDC balance (live)',
+      avail:'On-chain pUSD balance (live)',
       hold:'Current holdings value (USD)',
       vol:'All-time trading volume (USD)',
       cnt:'Number of prediction markets joined',
@@ -463,7 +463,7 @@ const i18n = {
       months:'Total active trading months',
     },
     statLabels:['Total P&L','Available','Holdings','Net Assets'],
-    statSubs:['All-time · USD','','','Available + Holdings · USD'],
+    statSubs:['All-time · USD','pUSD · live','','Available pUSD + Holdings · USD'],
     copied:'Copied', noInput:'Please enter addresses',
     invalidAddr:n=>`${n} invalid address(es), please check`,
     dedupMsg:n=>`Removed ${n} duplicate address(es)`,
@@ -488,7 +488,7 @@ const i18n = {
     },
     footSummary:'Total', footRows:n=>`${n} rows`,
     historyEntry:n=>`${n} address(es)`, historyDel:'Del',
-    csvHeaders:['#','Address','Net Assets','P&L','Available','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes'],
+    csvHeaders:['#','Address','Net Assets','P&L','Available (pUSD)','Holdings','Volume','Pools','Last Active','Active Days','Active Months','Notes'],
     offlineMsg:'Network disconnected. Please check your connection and retry.',
     tgGroup:'Join Group',
     officialSite:'Official Site',
@@ -505,9 +505,9 @@ const RPC_TIMEOUT     = 3500;
 const RETRY_BASE_MS   = 800;
 const MAX_SAFES       = 5;
 const MS_PER_DAY      = 86400000;
-const USDC_DECIMALS   = 6;
-const USDC_SCALE      = 10n ** BigInt(USDC_DECIMALS);
-const USDC_CONTRACT   = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+const PUSD_DECIMALS   = 6;
+const PUSD_SCALE      = 10n ** BigInt(PUSD_DECIMALS);
+const PUSD_CONTRACT   = '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB';
 const ETH_ADDR_RE     = /^0x[0-9a-fA-F]{40}$/;
 const CONCURRENCY     = 3;
 const RATE_LIMIT_MS   = 200;
@@ -622,17 +622,17 @@ async function rpcEthCall(payload, timeout = RPC_TIMEOUT) {
   return null;
 }
 
-async function getUSDC(addr) {
+async function getPUSD(addr) {
   const data = '0x70a08231000000000000000000000000' + addr.slice(2);
   const payload = {
     jsonrpc: '2.0', id: 1, method: 'eth_call',
-    params: [{ to: USDC_CONTRACT, data }, 'latest']
+    params: [{ to: PUSD_CONTRACT, data }, 'latest']
   };
   try {
     const hex = await rpcEthCall(payload, 4000);
     if (!hex) return '-';
     const raw = hex === '0x' ? 0n : BigInt(hex);
-    const valueTimes100 = (raw * 100n + USDC_SCALE / 2n) / USDC_SCALE;
+    const valueTimes100 = (raw * 100n + PUSD_SCALE / 2n) / PUSD_SCALE;
     const whole = valueTimes100 / 100n;
     const cent  = valueTimes100 % 100n;
     return `${whole}.${cent.toString().padStart(2, '0')}`;
@@ -648,7 +648,7 @@ const api = {
     .then(d => d.traded ?? '-'),
   profit: a => fetchJ(`https://lb-api.polymarket.com/profit?window=all&limit=1&address=${a}`)
     .then(d => d[0]?.amount ?? '-'),
-  usdc: getUSDC,
+  pusd: getPUSD,
   value: a => fetchJ(`https://data-api.polymarket.com/value?user=${a}`)
     .then(d => d[0]?.value ?? '-'),
   activity: async a => {
@@ -731,7 +731,7 @@ async function queryOne(owner) {
     try {
       const [vol, cnt, pro, hold, act, avail] = await Promise.all([
         api.volume(owner), api.traded(owner), api.profit(owner),
-        api.value(owner),  api.activity(owner), api.usdc(owner)
+        api.value(owner),  api.activity(owner), api.pusd(owner)
       ]);
       const result = [{ disp: owner, safe: owner, vol, cnt, pro, avail, hold, act }];
       queryCache.set(owner, { data: result, ts: Date.now() });
@@ -769,7 +769,7 @@ async function queryOne(owner) {
     try {
       const [vol, cnt, pro, hold, act, avail] = await Promise.all([
         api.volume(safe), api.traded(safe), api.profit(safe),
-        api.value(safe),  api.activity(safe), api.usdc(safe)
+        api.value(safe),  api.activity(safe), api.pusd(safe)
       ]);
       rows.push({ disp: owner, safe, vol, cnt, pro, avail, hold, act });
     } catch (e) {
@@ -1446,6 +1446,7 @@ $('#json').addEventListener('click', () => {
     pools: toNum(m.cnt),
     profit: toNum(m.pro),
     available: toNum(m.avail),
+    availableAsset: 'pUSD',
     holdings: toNum(m.hold),
     total: toNum(m.avail) + toNum(m.hold),
     activeDays: m.act?.d ?? 0,
