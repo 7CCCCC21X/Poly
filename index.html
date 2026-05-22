@@ -34,6 +34,7 @@ body{font-family:-apple-system,'Segoe UI','PingFang SC','Helvetica Neue',Arial,s
 .page-header h1{font-size:30px;font-weight:800;color:var(--c-text);letter-spacing:-.5px;margin-bottom:0}
 .page-header h1 span{background:linear-gradient(135deg,var(--c-primary),#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .page-header .subtitle{font-size:15px;color:var(--c-sub);margin-bottom:0;margin-top:4px}
+
 /* 标题下方工具栏：badges + 语言 + 主题 */
 .header-toolbar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .header-btn{height:34px;padding:0 14px;font-size:13px;font-weight:600;border-radius:17px;background:var(--c-card);color:var(--c-text);border:1px solid var(--c-border);box-shadow:var(--shadow);letter-spacing:.2px;display:inline-flex;align-items:center}
@@ -61,7 +62,6 @@ button:disabled{background:#94a3b8;cursor:not-allowed;opacity:.6}
 .btn-outline:hover:not(:disabled){background:var(--c-hover);box-shadow:none;transform:none}
 .center{text-align:center}
 .toolbar{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:10px}
-
 
 /* 离线横幅 */
 .offline-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--c-red);color:#fff;text-align:center;padding:10px;font-size:14px;z-index:200;font-weight:500}
@@ -100,14 +100,50 @@ progress::-webkit-progress-bar{background:var(--c-border);border-radius:3px}
 .history-item button{background:var(--c-red);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer}
 
 /* 表格样式 */
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius);border:1px solid var(--c-border);margin-top:4px}
-table{width:100%;min-width:1000px;border-collapse:collapse;background:var(--c-card);transition:background .3s}
+.table-wrap{
+  max-height:640px;
+  max-height:min(62vh,640px);
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:var(--radius);
+  border:1px solid var(--c-border);
+  margin-top:4px;
+  position:relative;
+}
+
+table{
+  width:100%;
+  min-width:1000px;
+  border-collapse:separate;
+  border-spacing:0;
+  background:var(--c-card);
+  transition:background .3s;
+}
+
 th,td{padding:12px 10px;font-size:13px;text-align:left;transition:background .3s,border-color .3s}
 td{border-top:1px solid var(--c-border)}
-th{background:var(--c-primary);color:#fff;position:sticky;top:0;z-index:2;cursor:pointer;user-select:none;white-space:nowrap;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;padding:10px 8px}
+
+th{
+  background:var(--c-primary);
+  color:#fff;
+  position:sticky;
+  top:0;
+  z-index:5;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+  font-weight:600;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+  padding:10px 8px;
+  background-clip:padding-box;
+}
+
 /* 等宽数字（居中对齐）*/
 td:nth-child(n+3):nth-child(-n+11){text-align:center;font-variant-numeric:tabular-nums}
 th:nth-child(n+3):nth-child(-n+11){text-align:center}
+
 /* 操作列居中 */
 th:nth-child(13),td:nth-child(13){text-align:center}
 th:hover{background:var(--c-primary-dark)}
@@ -120,10 +156,37 @@ tbody tr:hover{background:var(--c-hover)}
 
 /* 粘住列 */
 th:nth-child(1),td:nth-child(1){width:44px;min-width:44px}
-thead th:nth-child(1){position:sticky;left:0;background:var(--c-primary);z-index:3}
-thead th:nth-child(2){position:sticky;left:44px;background:var(--c-primary);z-index:3}
-tbody td:nth-child(1){position:sticky;left:0;background:var(--c-card);z-index:1}
-tbody td:nth-child(2){position:sticky;left:44px;background:var(--c-card);z-index:1}
+
+thead th:nth-child(1){
+  position:sticky;
+  left:0;
+  top:0;
+  background:var(--c-primary);
+  z-index:7;
+}
+
+thead th:nth-child(2){
+  position:sticky;
+  left:44px;
+  top:0;
+  background:var(--c-primary);
+  z-index:7;
+}
+
+tbody td:nth-child(1){
+  position:sticky;
+  left:0;
+  background:var(--c-card);
+  z-index:3;
+}
+
+tbody td:nth-child(2){
+  position:sticky;
+  left:44px;
+  background:var(--c-card);
+  z-index:3;
+}
+
 tbody tr:nth-child(even) td:nth-child(1),tbody tr:nth-child(even) td:nth-child(2){background:var(--c-even)}
 tbody tr:hover td:nth-child(1),tbody tr:hover td:nth-child(2){background:var(--c-hover)}
 
@@ -140,7 +203,12 @@ tfoot{display:none}
 .stat-card .stat-value{font-size:24px;font-weight:800;color:var(--c-text);letter-spacing:-.5px}
 .stat-card .stat-value.positive{color:var(--c-green)}
 .stat-card .stat-value.negative{color:var(--c-red)}
-@media(max-width:640px){.stats-cards{grid-template-columns:repeat(2,1fr);gap:8px}.stat-card{padding:14px 10px}.stat-card .stat-value{font-size:18px}}
+
+@media(max-width:640px){
+  .stats-cards{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-card{padding:14px 10px}
+  .stat-card .stat-value{font-size:18px}
+}
 
 /* 状态色 */
 .positive{color:var(--c-green);font-weight:600}
@@ -197,6 +265,7 @@ tfoot{display:none}
   .filter-row{flex-direction:column}
   .filter-row input{width:100%}
   .toolbar{gap:4px}
+  .table-wrap{max-height:55vh}
 }
 
 /* ── 导入区 Tab ── */
@@ -263,18 +332,15 @@ tfoot{display:none}
 <div class="referral-banner" id="referralBanner"></div>
 
 <div class="card">
-  <!-- 导入区 Tab -->
   <div class="import-tabs">
     <button class="import-tab active" id="tabPaste" type="button"></button>
     <button class="import-tab" id="tabUpload" type="button"></button>
   </div>
 
-  <!-- 粘贴模式 -->
   <div id="panePaste">
     <textarea id="input"></textarea>
   </div>
 
-  <!-- 上传模式 -->
   <div id="paneUpload" style="display:none">
     <div class="upload-zone" id="uploadZone">
       <div class="upload-icon">📂</div>
@@ -285,7 +351,6 @@ tfoot{display:none}
     </div>
   </div>
 
-  <!-- 帮助提示 -->
   <div class="help-tip">
     <span class="help-icon">💡</span>
     <span id="helpBody"></span>
@@ -511,7 +576,7 @@ const PUSD_CONTRACT   = '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB';
 const ETH_ADDR_RE     = /^0x[0-9a-fA-F]{40}$/;
 const CONCURRENCY     = 3;
 const RATE_LIMIT_MS   = 200;
-const CACHE_TTL       = 5 * 60 * 1000;  // 5 分钟缓存过期
+const CACHE_TTL       = 5 * 60 * 1000;
 const HISTORY_KEY     = 'pm_query_history';
 const MAX_HISTORY     = 20;
 
@@ -684,10 +749,10 @@ const api = {
   }
 };
 
-/* error codes instead of localized strings */
-const ERR_NO_SAFE   = 'ERR_NO_SAFE';   // 地址未找到关联 Safe 账户
-const ERR_API_FAIL  = 'ERR_API_FAIL';  // API 请求失败
-const ERR_TIMEOUT   = 'ERR_TIMEOUT';   // 请求超时
+const ERR_NO_SAFE   = 'ERR_NO_SAFE';
+const ERR_API_FAIL  = 'ERR_API_FAIL';
+const ERR_TIMEOUT   = 'ERR_TIMEOUT';
+
 function errMsg(code) {
   if (code === ERR_NO_SAFE)  return L('noSafeErr');
   if (code === ERR_API_FAIL) return L('apiFailErr');
@@ -726,7 +791,6 @@ async function queryOne(owner) {
     queryCache.delete(owner);
   }
 
-  // Polymarket 地址模式：直接查询，跳过 Safe 步骤
   if (getAddrMode() === 'polymarket') {
     try {
       const [vol, cnt, pro, hold, act, avail] = await Promise.all([
@@ -744,7 +808,6 @@ async function queryOne(owner) {
     }
   }
 
-  // 账户地址模式：先查询关联的 Safe 账户
   let safes = [];
   try {
     const url = `https://safe-client.safe.global/v1/chains/137/owners/${owner}/safes`;
@@ -796,7 +859,6 @@ async function runPool(tasks, concurrency, onDone) {
 
 let resultRows = [];
 let resultMeta = [];
-/* store last query stats for summary re-rendering */
 let lastQueryStats = null;
 
 function initTheme() {
@@ -851,7 +913,6 @@ function applyLang() {
   $('#addrTypePoly').textContent = L('addrTypePoly');
   updateAddrTypeHint();
 
-  // table headers + tooltips
   const cols = L('thCols');
   const tips = L('thTips') || {};
   $$('#tbl thead th').forEach((th, i) => {
@@ -869,24 +930,20 @@ function applyLang() {
     }
   });
 
-  // stat card labels
   const sl = L('statLabels');
   $('#labelProfit').textContent = sl[0];
   $('#labelAvail').textContent = sl[1];
   $('#labelHold').textContent = sl[2];
   $('#labelTotal').textContent = sl[3];
 
-  // rebuild column menu & history
   buildColMenu();
   renderHistory();
 
-  // re-render summary text if we have query stats
   if (lastQueryStats) {
     const s = lastQueryStats;
     $('#summary').textContent = L('summaryText', s.total, s.rows, s.fail, s.stopped);
   }
 
-  // re-render table data if present (fixes lastActive, error msgs, buttons)
   if (resultMeta.length) renderAll();
 }
 
@@ -913,7 +970,6 @@ inputEl.addEventListener('drop', e => {
   if (file) handleFileImport(file);
 });
 
-/* ── 导入区 Tab ── */
 $('#tabPaste').addEventListener('click', () => {
   $('#tabPaste').classList.add('active');
   $('#tabUpload').classList.remove('active');
@@ -927,7 +983,6 @@ $('#tabUpload').addEventListener('click', () => {
   $('#panePaste').style.display = 'none';
 });
 
-/* ── 文件上传区 ── */
 const uploadZone = $('#uploadZone');
 const fileInput  = $('#fileInput');
 $('#uploadBtn').addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
@@ -983,6 +1038,7 @@ function saveHistory(addrs) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
   renderHistory();
 }
+
 function renderHistory() {
   const list = getHistory();
   const wrap = $('#historyWrap');
@@ -1014,6 +1070,7 @@ function renderHistory() {
     el.appendChild(div);
   });
 }
+
 $('#clearHistory').addEventListener('click', () => {
   localStorage.removeItem(HISTORY_KEY);
   renderHistory();
@@ -1356,7 +1413,6 @@ $('#run').addEventListener('click', async () => {
 
   let completed = 0, fail = 0, idx = 1;
 
-  // Pre-create placeholder rows in input order so results appear in that order
   const placeholders = list.map((addr, i) => {
     const tr = document.createElement('tr');
     tr.className = 'row-placeholder';
@@ -1396,7 +1452,6 @@ $('#run').addEventListener('click', async () => {
   $('#stop').style.display = 'none';
   $('#run').disabled = $('#csv').disabled = $('#json').disabled = false;
 
-  // 按 DOM 顺序（即输入顺序）重新编号
   let num = 1;
   for (const tr of $$('#tbl tbody tr')) {
     tr.cells[0].textContent = num;
